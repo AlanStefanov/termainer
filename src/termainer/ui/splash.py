@@ -20,6 +20,8 @@ LOGO = """\
 [bold green]   | |  | |____| | \\ \\| |  | |/ ____ \\ _| |_| |\\  | |____| | \\ \\ [/]
 [bold green]   |_|  |______|_|  \\_\\_|  |_/_/    \\_\\_____|_| \\_|______|_|  \\_\\ [/]"""
 
+LOGO_COMPACT = "[bold green]TERMAINER[/]"
+
 CONTAINER_ICON = """\
 [bold cyan]            ┌─────────────────┐[/]
 [bold cyan]         ┌──┘                 └──┐[/]
@@ -41,7 +43,7 @@ class SplashScreen(Screen):
             Static("[dim]────────────────────────────────────────────[/]  B I E N V E N I D O  A", id="splash-top-line"),
             Center(
                 Vertical(
-                    Static(LOGO, classes="splash-logo"),
+                    Static(LOGO, classes="splash-logo", id="splash-logo-text"),
                     Static(f"[bold cyan]v{VERSION}[/]", classes="splash-version"),
                     id="splash-logo-block",
                 )
@@ -136,6 +138,7 @@ class SplashScreen(Screen):
                 ),
                 id="splash-bottom-row",
             ),
+            Static("[bold cyan]Presiona [white]Enter[/] para continuar[/]", id="splash-enter-hint"),
             Center(
                 Static(
                     f"[green]▻[/] [bold green]TERMAINER[/] [cyan]v{VERSION}[/]    [dim]|[/]    [dim]Desarrollado con[/] [red]♥[/] [dim]usando Python, Textual y Rich[/]    [dim]|[/]    [dim]Hecho por[/] [green]Alan Stefanov[/]",
@@ -156,10 +159,13 @@ class SplashScreen(Screen):
         compact = width < 105 or height < 30
         ultra_compact = width < 85 or height < 24
         root = self.query_one("#splash-root", Vertical)
+        logo = self.query_one("#splash-logo-text", Static)
         if compact:
             root.add_class("compact")
+            logo.update(LOGO_COMPACT)
         else:
             root.remove_class("compact")
+            logo.update(LOGO)
         if ultra_compact:
             root.add_class("ultra-compact")
         else:
@@ -175,7 +181,7 @@ class SplashScreen(Screen):
         self._dismiss()
 
     async def _auto_dismiss(self) -> None:
-        await asyncio.sleep(5)
+        await asyncio.sleep(10)
         self._dismiss()
 
     def _dismiss(self) -> None:

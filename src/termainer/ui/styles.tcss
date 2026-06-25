@@ -46,6 +46,13 @@ Dashboard {
     height: 8;
 }
 
+#splash-enter-hint {
+    height: 1;
+    text-align: center;
+    color: #00d4ff;
+    margin-top: 1;
+}
+
 .splash-tagline {
     text-align: center;
     height: 1;
@@ -148,6 +155,14 @@ Dashboard {
     padding: 0 1;
 }
 
+#splash-root.compact #splash-logo-block {
+    height: 3;
+}
+
+#splash-root.compact .splash-logo {
+    text-style: bold;
+}
+
 #splash-root.compact #splash-about-row {
     height: auto;
 }
@@ -166,6 +181,10 @@ Dashboard {
 
 #splash-root.ultra-compact #splash-main-card {
     height: auto;
+}
+
+#splash-root.ultra-compact #splash-enter-hint {
+    margin-top: 0;
 }
 
 #splash-root.ultra-compact #splash-flow-diagram {
