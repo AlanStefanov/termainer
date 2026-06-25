@@ -33,10 +33,11 @@ CONTAINER_ICON = """\
 
 
 class SplashScreen(Screen):
-    def __init__(self, server_manager: ServerManager) -> None:
+    def __init__(self, server_manager: ServerManager, auto_dismiss: bool = True) -> None:
         super().__init__()
         self._server_manager = server_manager
         self._dismissed = False
+        self._auto_dismiss_enabled = auto_dismiss
 
     def compose(self) -> ComposeResult:
         yield Vertical(
@@ -150,7 +151,8 @@ class SplashScreen(Screen):
 
     async def on_mount(self) -> None:
         self._apply_responsive_mode(self.size.width, self.size.height)
-        asyncio.create_task(self._auto_dismiss())
+        if self._auto_dismiss_enabled:
+            asyncio.create_task(self._auto_dismiss())
 
     def on_resize(self, event: Resize) -> None:
         self._apply_responsive_mode(event.size.width, event.size.height)

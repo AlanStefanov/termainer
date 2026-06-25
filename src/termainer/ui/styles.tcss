@@ -503,11 +503,11 @@ Dashboard {
 }
 
 #dashboard-root.compact #sidebar {
-    width: 32;
+    width: 36;
 }
 
 #dashboard-root.compact #logs-panel {
-    height: 14;
+    height: 15;
 }
 
 #dashboard-root.compact #container-list > ContainerItem {
@@ -575,6 +575,14 @@ HelpModal {
     padding: 1 2;
     background: #02070c;
     border: solid #7b4fb2;
+}
+
+#help-scroll {
+    height: 16;
+    border: solid #2f3947;
+    padding: 0 1;
+    margin-bottom: 1;
+    background: #01050a;
 }
 
 #remove-title {

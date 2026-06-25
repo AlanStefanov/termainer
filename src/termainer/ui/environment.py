@@ -61,6 +61,8 @@ class EnvironmentScreen(Screen):
         Binding("left", "focus_left", "Left", priority=True),
         Binding("right", "focus_right", "Right", priority=True),
         Binding("enter", "select_focused", "Select", priority=True),
+        Binding("?", "show_welcome_help", "Help", priority=True),
+        Binding("h", "show_welcome_help", "Help", priority=True),
         Binding("q", "quit", "Quit", priority=True),
     ]
 
@@ -258,3 +260,8 @@ class EnvironmentScreen(Screen):
 
     def action_quit(self) -> None:
         self.app.exit()
+
+    def action_show_welcome_help(self) -> None:
+        from .splash import SplashScreen
+
+        self.app.switch_screen(SplashScreen(self._server_manager, auto_dismiss=False))

@@ -7,7 +7,7 @@ from typing import Optional
 from rich.markup import escape
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.events import Resize
 from textual.screen import ModalScreen, Screen
 from textual.widgets import Button, Input, Label, ListView, Static
@@ -106,8 +106,9 @@ class Dashboard(Screen):
 
     def _top_bar(self) -> Vertical:
         provider_name = self._active_provider.name.capitalize() if self._active_provider else "Provider"
+        mode_suffix = " [dim](ultra)[/]" if self._ultra_compact_mode else (" [dim](compact)[/]" if self._compact_mode else "")
         connection_status = (
-            f"[bold green]● {provider_name}: connected[/]"
+            f"[bold green]● {provider_name}: connected[/]{mode_suffix}"
             if self._active_provider
             else "[bold yellow]● Sin conexión[/]"
         )
@@ -224,8 +225,8 @@ class Dashboard(Screen):
         self._apply_responsive_mode(event.size.width, event.size.height)
 
     def _apply_responsive_mode(self, width: int, height: int) -> None:
-        compact = width < 150 or height < 42
-        ultra_compact = width < 110 or height < 32
+        compact = width < 180 or height < 48
+        ultra_compact = width < 125 or height < 36
         self._compact_mode = compact
         self._ultra_compact_mode = ultra_compact
 
@@ -239,6 +240,14 @@ class Dashboard(Screen):
             root.add_class("ultra-compact")
         else:
             root.remove_class("ultra-compact")
+
+        status = self.query_one("#top-status", Static)
+        provider_name = self._active_provider.name.capitalize() if self._active_provider else "Provider"
+        mode_suffix = " [dim](ultra)[/]" if ultra_compact else (" [dim](compact)[/]" if compact else "")
+        if self._active_provider:
+            status.update(f"[bold green]● {provider_name}: connected[/]{mode_suffix}")
+        else:
+            status.update(f"[bold yellow]● Sin conexión[/]{mode_suffix}")
 
     async def _refresh_containers(self) -> None:
         list_view = self.query_one("#container-list", ListView)
@@ -504,6 +513,13 @@ class Dashboard(Screen):
 class RemoveContainerModal(ModalScreen[bool]):
     BINDINGS = [
         ("escape", "cancel", "Cancel"),
+        ("n", "cancel", "Cancel"),
+        ("enter", "confirm", "Confirm"),
+        ("y", "confirm", "Confirm"),
+        ("left", "focus_prev", "Prev"),
+        ("right", "focus_next", "Next"),
+        ("tab", "focus_next", "Next"),
+        ("shift+tab", "focus_prev", "Prev"),
     ]
 
     def __init__(self, container_name: str, container_id: str, resource_name: str = "contenedor") -> None:
@@ -532,8 +548,24 @@ class RemoveContainerModal(ModalScreen[bool]):
         else:
             self.dismiss(False)
 
+    def on_mount(self) -> None:
+        self.query_one("#cancel-remove", Button).focus()
+
     def action_cancel(self) -> None:
         self.dismiss(False)
+
+    def action_confirm(self) -> None:
+        self.dismiss(True)
+
+    def action_focus_next(self) -> None:
+        focused = self.focused
+        if focused and focused.id == "cancel-remove":
+            self.query_one("#confirm-remove", Button).focus()
+        else:
+            self.query_one("#cancel-remove", Button).focus()
+
+    def action_focus_prev(self) -> None:
+        self.action_focus_next()
 
 
 class HelpModal(ModalScreen):
@@ -542,36 +574,71 @@ class HelpModal(ModalScreen):
         Binding("q", "dismiss_help", "Close", priority=True),
         Binding("?", "dismiss_help", "Close", priority=True),
         Binding("enter", "dismiss_help", "Close", priority=True),
+        Binding("up", "scroll_up_help", "Up", priority=True),
+        Binding("down", "scroll_down_help", "Down", priority=True),
+        Binding("pageup", "scroll_page_up_help", "Page Up", priority=True),
+        Binding("pagedown", "scroll_page_down_help", "Page Down", priority=True),
+        Binding("home", "scroll_home_help", "Home", priority=True),
+        Binding("end", "scroll_end_help", "End", priority=True),
     ]
 
     def compose(self) -> ComposeResult:
         yield Vertical(
             Static("[bold yellow]Atajos de Teclado[/]", id="remove-title"),
-            Static(
-                "[bold]Entorno[/]\n"
-                "  [reverse] ←/↑/↓/→ [/reverse] Navegar entre servidores\n"
-                "  [reverse] Enter [/reverse] Seleccionar servidor\n\n"
-                "[bold]Dashboard[/]\n"
-                "  [reverse] ↑/↓ [/reverse] Navegar contenedores\n"
-                "  [reverse] Enter [/reverse] Seleccionar contenedor\n"
-                "  [reverse] b / Esc [/reverse] Volver a selección de servidor\n"
-                "  [reverse] r [/reverse] Refrescar lista\n"
-                "  [reverse] p [/reverse] Pausar / Reanudar logs\n"
-                "  [reverse] e / x [/reverse] Exportar logs\n"
-                "  [reverse] a [/reverse] Iniciar contenedor\n"
-                "  [reverse] t [/reverse] Detener contenedor\n"
-                "  [reverse] R [/reverse] Reiniciar contenedor\n"
-                "  [reverse] Del [/reverse] Eliminar contenedor\n"
-                "  [reverse] q [/reverse] Salir\n\n"
-                "[dim]Presiona Enter, q, ? o Esc para cerrar.[/]",
-                id="remove-warning",
+            VerticalScroll(
+                Static(
+                    "[bold]Entorno (Tecnologías)[/]\n"
+                    "  [reverse] ←/↑/↓/→ [/reverse] Navegar tecnologías\n"
+                    "  [reverse] Enter [/reverse] Abrir dashboard de tecnología\n\n"
+                    "[bold]Dashboard[/]\n"
+                    "  [reverse] ↑/↓ [/reverse] Navegar contenedores\n"
+                    "  [reverse] Enter [/reverse] Seleccionar contenedor\n"
+                    "  [reverse] b / Esc [/reverse] Volver a selección de tecnología\n"
+                    "  [reverse] r [/reverse] Refrescar lista\n"
+                    "  [reverse] p [/reverse] Pausar / Reanudar logs\n"
+                    "  [reverse] e / x [/reverse] Exportar logs\n"
+                    "  [reverse] a [/reverse] Iniciar contenedor\n"
+                    "  [reverse] t [/reverse] Detener contenedor\n"
+                    "  [reverse] R [/reverse] Reiniciar contenedor\n"
+                    "  [reverse] Del [/reverse] Eliminar contenedor\n"
+                    "  [reverse] q [/reverse] Salir\n\n"
+                    "[bold]Ayuda[/]\n"
+                    "  [reverse] ↑/↓ [/reverse] Scroll línea a línea\n"
+                    "  [reverse] PgUp / PgDn [/reverse] Scroll por página\n"
+                    "  [reverse] Home / End [/reverse] Ir al inicio/final\n"
+                    "  [reverse] Enter [/reverse] Cerrar ayuda y volver\n\n"
+                    "[dim]Presiona Enter, q, ? o Esc para cerrar.[/]",
+                    id="remove-warning",
+                ),
+                id="help-scroll",
             ),
             Button("Cerrar", id="cancel-remove"),
             id="remove-modal",
         )
+
+    def on_mount(self) -> None:
+        self.query_one("#help-scroll", VerticalScroll).focus()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.dismiss()
 
     def action_dismiss_help(self) -> None:
         self.dismiss()
+
+    def action_scroll_up_help(self) -> None:
+        self.query_one("#help-scroll", VerticalScroll).scroll_relative(y=-2)
+
+    def action_scroll_down_help(self) -> None:
+        self.query_one("#help-scroll", VerticalScroll).scroll_relative(y=2)
+
+    def action_scroll_page_up_help(self) -> None:
+        self.query_one("#help-scroll", VerticalScroll).scroll_relative(y=-12)
+
+    def action_scroll_page_down_help(self) -> None:
+        self.query_one("#help-scroll", VerticalScroll).scroll_relative(y=12)
+
+    def action_scroll_home_help(self) -> None:
+        self.query_one("#help-scroll", VerticalScroll).scroll_relative(y=-10000)
+
+    def action_scroll_end_help(self) -> None:
+        self.query_one("#help-scroll", VerticalScroll).scroll_relative(y=10000)

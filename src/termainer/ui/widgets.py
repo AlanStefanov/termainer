@@ -13,7 +13,7 @@ from textual.widgets._rich_log import RichLog
 from ..providers.base import ContainerSummary
 
 
-CHART_WIDTH = 62
+DEFAULT_CHART_WIDTH = 62
 
 
 def _status_color(status: str) -> str:
@@ -140,15 +140,22 @@ class StatsWidget(Static):
             self._mem_history.append(mem_val)
             self._net_history.append(net_val)
 
-        cpu_chart = self._chart(self._cpu_history, 100, "100%", " 50%", "  0%", "green")
-        mem_chart = self._chart(self._mem_history, 100, "100%", " 50%", "  0%", "cyan")
-        net_max = max(max(self._net_history, default=0), 1)
-        net_chart = self._chart(self._net_history, net_max, self._format_bytes(net_max), self._format_bytes(net_max / 2), "0B", "magenta")
+        widget_width = max(50, int(getattr(self.size, "width", DEFAULT_CHART_WIDTH + 12) or (DEFAULT_CHART_WIDTH + 12)))
+        chart_width = max(34, min(DEFAULT_CHART_WIDTH, widget_width - 10))
 
-        cpu_card = self._kpi_card("CPU", str(cpu_raw), "green", 12)
-        mem_card = self._kpi_card("MEMORIA", str(mem_raw), "cyan", 22)
-        net_card = self._kpi_card("NET I/O", str(net_raw), "magenta", 22)
-        pids_card = self._kpi_card("PIDS", str(pids), "yellow", 12)
+        cpu_chart = self._chart(self._cpu_history, 100, "100%", " 50%", "  0%", "green", chart_width)
+        mem_chart = self._chart(self._mem_history, 100, "100%", " 50%", "  0%", "cyan", chart_width)
+        net_max = max(max(self._net_history, default=0), 1)
+        net_chart = self._chart(self._net_history, net_max, self._format_bytes(net_max), self._format_bytes(net_max / 2), "0B", "magenta", chart_width)
+
+        cpu_card_w = 12 if widget_width >= 70 else 10
+        pids_card_w = 12 if widget_width >= 70 else 10
+        wide_card_w = 22 if widget_width >= 90 else 18
+
+        cpu_card = self._kpi_card("CPU", str(cpu_raw), "green", cpu_card_w)
+        mem_card = self._kpi_card("MEMORIA", str(mem_raw), "cyan", wide_card_w)
+        net_card = self._kpi_card("NET I/O", str(net_raw), "magenta", wide_card_w)
+        pids_card = self._kpi_card("PIDS", str(pids), "yellow", pids_card_w)
 
         lines = [
             *self._join_cards([cpu_card, mem_card, net_card, pids_card]),
@@ -193,13 +200,13 @@ class StatsWidget(Static):
         return ["  ".join(card[row] for card in cards) for row in range(len(cards[0]))]
 
     @staticmethod
-    def _chart(data: deque, max_val: float, top_label: str, mid_label: str, bottom_label: str, color: str) -> List[str]:
-        samples = list(data)[-CHART_WIDTH:]
-        sparkline = StatsWidget._sparkline(samples, max_val).rjust(CHART_WIDTH)
+    def _chart(data: deque, max_val: float, top_label: str, mid_label: str, bottom_label: str, color: str, chart_width: int) -> List[str]:
+        samples = list(data)[-chart_width:]
+        sparkline = StatsWidget._sparkline(samples, max_val).rjust(chart_width)
         return [
-            f"[dim]{top_label:>5} ┌{'─' * CHART_WIDTH}┐[/]",
+            f"[dim]{top_label:>5} ┌{'─' * chart_width}┐[/]",
             f"[dim]{mid_label:>5} │[/][{color}]{sparkline}[/][dim]│[/]",
-            f"[dim]{bottom_label:>5} └{'─' * CHART_WIDTH}┘[/]",
+            f"[dim]{bottom_label:>5} └{'─' * chart_width}┘[/]",
         ]
 
     @staticmethod
