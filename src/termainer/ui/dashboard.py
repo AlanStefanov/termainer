@@ -10,7 +10,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.events import Resize
 from textual.screen import ModalScreen, Screen
-from textual.widgets import Button, Input, Label, ListView, Static
+from textual.widgets import Button, Input, Label, ListView, Static, Select
 
 from ..providers.base import ContainerSummary, Provider
 from ..server_manager import ServerManager
@@ -79,20 +79,30 @@ class Dashboard(Screen):
     def compose(self) -> ComposeResult:
         resource_label = "PODS" if self._is_kubernetes else "CONTENEDORES"
 
+        # Build server selector options if multi-server setup
+        server_selector = self._build_server_selector()
+
+        sidebar_children: list = [
+            Static(f"[bold white]› {resource_label}[/]    [dim]0[/]", classes="panel-header", id="sidebar-count"),
+        ]
+        
+        if server_selector is not None:
+            sidebar_children.append(server_selector)
+        
+        sidebar_children.extend([
+            Input(placeholder=f"Buscar {resource_label.lower()}...", id="search-input"),
+            ListView(id="container-list"),
+            Static(
+                "[bold cyan]↑/↓[/] Navegar     [bold cyan]Enter[/] Seleccionar\n"
+                "[bold cyan]r[/] Refrescar     [bold cyan]b[/] Atrás     [bold cyan]q[/] Salir",
+                id="sidebar-help",
+            ),
+        ])
+
         yield Vertical(
             self._top_bar(),
             Horizontal(
-                Vertical(
-                    Static(f"[bold white]› {resource_label}[/]    [dim]0[/]", classes="panel-header", id="sidebar-count"),
-                    Input(placeholder=f"Buscar {resource_label.lower()}...", id="search-input"),
-                    ListView(id="container-list"),
-                    Static(
-                        "[bold cyan]↑/↓[/] Navegar     [bold cyan]Enter[/] Seleccionar\n"
-                        "[bold cyan]r[/] Refrescar     [bold cyan]b[/] Atrás     [bold cyan]q[/] Salir",
-                        id="sidebar-help",
-                    ),
-                    id="sidebar",
-                ),
+                Vertical(*sidebar_children, id="sidebar"),
                 Vertical(
                     self._top_panels(),
                     self._logs_panel(),
@@ -120,29 +130,34 @@ class Dashboard(Screen):
             id="top-bar-row",
         )
 
-        children: list[Horizontal] = [brand_row]
+        return Vertical(brand_row, id="top-bar")
 
-        if self._server_manager.server_count > 1:
-            server_tabs: list[Button] = []
-            server_tabs.append(Button("▣ Todos" if self._active_server is None else "□ Todos", id="tab-all", classes="server-tab"))
-            for label in self._server_manager.server_labels:
-                active_label = f"▣ {label}" if label == self._active_server else f"□ {label}"
-                server_tabs.append(Button(active_label, id=f"tab-{label}", classes="server-tab"))
-            children.append(Horizontal(*server_tabs, id="server-tabs"))
+    def _build_server_selector(self) -> Optional[Select]:
+        """Build a Select widget for server switching (multi-server only)."""
+        if self._server_manager.server_count <= 1:
+            return None
 
-        return Vertical(*children, id="top-bar")
+        options: list[tuple[str, str]] = []
+        
+        # "Todos" option
+        options.append(("Todos", ""))
+        
+        # Individual servers
+        for label in self._server_manager.server_labels:
+            options.append((label, label))
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if not event.button.id:
+        select = Select(options, id="server-selector", classes="server-selector")
+        return select
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Handle server selector changes."""
+        if event.control.id != "server-selector":
             return
-        if event.button.id == "tab-all":
-            self._switch_server(None)
-        elif event.button.id.startswith("tab-"):
-            label = event.button.id[4:]
-            if label in self._server_manager.server_labels:
-                self._switch_server(label)
+        new_server = event.value if event.value != "" else None
+        self._switch_server(new_server)
 
     def _switch_server(self, label: Optional[str]) -> None:
+        """Switch active server and refresh containers."""
         if label == self._active_server:
             return
         self._cancel_tasks()
@@ -150,19 +165,7 @@ class Dashboard(Screen):
         self._selected_container = None
         self._selected_info = {}
         self._selected_server = None
-        server_tabs = self.query_one("#server-tabs", Horizontal)
-        server_tabs.remove()
-        new_tabs = self._build_server_tabs()
-        self.query_one("#top-bar", Vertical).mount(new_tabs, before=1)
         self.run_worker(self._refresh_containers())
-
-    def _build_server_tabs(self) -> Horizontal:
-        server_tabs: list[Button] = []
-        server_tabs.append(Button("▣ Todos" if self._active_server is None else "□ Todos", id="tab-all", classes="server-tab"))
-        for label in self._server_manager.server_labels:
-            active_label = f"▣ {label}" if label == self._active_server else f"□ {label}"
-            server_tabs.append(Button(active_label, id=f"tab-{label}", classes="server-tab"))
-        return Horizontal(*server_tabs, id="server-tabs")
 
     def _top_panels(self) -> Horizontal:
         resource_singular = "pod" if self._is_kubernetes else "contenedor"

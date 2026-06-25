@@ -354,6 +354,22 @@ Dashboard {
     color: #00d4ff;
 }
 
+/* Server Selector Dropdown */
+.server-selector {
+    margin: 0 1;
+    height: 3;
+    border: solid #1e2c3a;
+    background: #01050a;
+    color: #b8c0cc;
+}
+
+.server-selector:focus,
+.server-selector:focus-within {
+    border: solid #00d4ff;
+    background: #0a1a2e;
+    color: #d8dee9;
+}
+
 #dashboard-body {
     height: 1fr;
     min-height: 0;

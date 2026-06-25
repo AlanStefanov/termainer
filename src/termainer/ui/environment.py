@@ -11,6 +11,7 @@ from textual.events import Resize
 from textual.screen import Screen
 from textual.widgets import Button, Static
 
+from ..config import has_ssh_servers_configured
 from ..server_manager import ServerManager
 from ..version import VERSION
 from .dashboard import Dashboard
@@ -138,6 +139,14 @@ class EnvironmentScreen(Screen):
         self._apply_responsive_mode(self.size.width, self.size.height)
         if self._card_ids:
             self.query_one(f"#{self._card_ids[0]}").focus()
+        
+        # Check if SSH servers are configured for multi-server access
+        if not has_ssh_servers_configured():
+            self.notify(
+                "💡 Configura servidores remotos en ~/.ssh/config para acceso multi-servidor",
+                severity="information",
+                timeout=5,
+            )
 
     def on_resize(self, event: Resize) -> None:
         self._apply_responsive_mode(event.size.width, event.size.height)

@@ -212,6 +212,37 @@ cp .env.example .env
 termainer
 ```
 
+#### Descubrimiento Automático de SSH Config (Recomendado)
+
+Termainer descubre automáticamente tus servidores del archivo **`~/.ssh/config`**. ¡Este es el **enfoque recomendado** para configuraciones multi-servidor—sin necesidad de archivo `.env`!
+
+Simplemente define tus servidores remotos en `~/.ssh/config`:
+
+```
+Host prod-web
+    HostName ec2-54-123-45-67.us-east-1.compute.amazonaws.com
+    User ubuntu
+    IdentityFile ~/.ssh/production.pem
+
+Host staging-k8s
+    HostName k8s-staging.example.com
+    User admin
+    IdentityFile ~/.ssh/staging-key
+
+Host dev-local
+    HostName 192.168.1.100
+    User devuser
+    IdentityFile ~/.ssh/dev-key
+```
+
+Luego ejecutá Termainer:
+
+```bash
+termainer
+```
+
+¡Verás todos los servidores del SSH config automáticamente cargados en el dropdown de servidor!
+
 #### Formas de autenticación SSH
 
 | Método | Cómo usarlo |
@@ -231,14 +262,19 @@ sudo yum install sshpass
 
 ### Dashboard Multi-Servidor
 
-La pantalla de entorno ahora es por tecnología (`Docker`, `Swarm`, `Kubernetes`, `Podman`, `OpenShift`).
+La pantalla de entorno es por tecnología (`Docker`, `Swarm`, `Kubernetes`, `Podman`, `OpenShift`).
 
-Cuando configurás múltiples servidores en `config.yaml`, cada dashboard tecnológico puede agrupar sus servidores. Podés:
+Cuando configurás múltiples servidores (via `config.yaml` o `~/.ssh/config`), cada dashboard tecnológico puede agrupar sus servidores. Podés:
 
-- Seleccionar **"Todos"** para ver recursos de todos los servidores de esa tecnología
-- Seleccionar **un servidor** para aislar un entorno
-- **Cambiar de servidor** en cualquier momento usando las pestañas en la parte superior del dashboard
+- **Dropdown de servidor** en la parte superior del dashboard para seleccionar un servidor específico
+- Opción **"Todos"** para ver recursos de todos los servidores de esa tecnología
+- **Cambiar de servidor** en cualquier momento usando el dropdown en la barra lateral
 - Cada contenedor muestra el **nombre del servidor** como prefijo en modo multi-servidor
+
+El dropdown se completa automáticamente con:
+- **Local** (tu máquina)
+- Servidores SSH desde `~/.ssh/config`
+- Servidores desde `config.yaml` (si están configurados)
 
 ### Atajos de Teclado
 

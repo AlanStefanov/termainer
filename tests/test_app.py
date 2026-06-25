@@ -15,7 +15,7 @@ async def test_build_server_manager_local_auto_builds_multiple_servers() -> None
         "termainer.app.KubernetesProvider.is_available", new=AsyncMock(return_value=True)
     ), patch("termainer.app.PodmanProvider.is_available", new=AsyncMock(return_value=False)), patch(
         "termainer.app.OpenShiftProvider.is_available", new=AsyncMock(return_value=True)
-    ):
+    ), patch("termainer.app.get_configured_ssh_servers", return_value={}):
         mgr = await build_server_manager([], ssh=None, cli_provider="auto")
 
     assert mgr.server_count == 4

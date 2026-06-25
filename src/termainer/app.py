@@ -7,7 +7,7 @@ from typing import List, Optional, Type
 
 from textual.app import App
 
-from .config import build_ssh_from_env, load_env_file
+from .config import build_ssh_from_env, load_env_file, build_ssh_from_ssh_server, get_configured_ssh_servers
 from .config_manager import ServerConfig, load_config
 from .providers.base import Provider
 from .providers.docker import DockerProvider
@@ -125,6 +125,7 @@ async def build_server_manager(
         provider_name = get_provider_from_env(env) or "auto"
 
     if provider_name == "auto" and ssh is None:
+        # Local auto-detect mode: get local providers + SSH servers from ~/.ssh/config
         available = await detect_available_providers(ssh=None)
         if not available:
             raise RuntimeError(
@@ -134,6 +135,20 @@ async def build_server_manager(
         for provider in available:
             label = f"Local {provider.name.capitalize()}"
             connections.append(ServerConnection(label=label, provider=provider, ssh=None))
+
+        # Add SSH-configured servers
+        ssh_servers = get_configured_ssh_servers()
+        for ssh_alias, ssh_server in ssh_servers.items():
+            try:
+                ssh_conn = build_ssh_from_ssh_server(ssh_server)
+                ssh_provider = await detect_provider(ssh=ssh_conn)
+                connections.append(
+                    ServerConnection(label=ssh_alias, provider=ssh_provider, ssh=ssh_conn)
+                )
+            except Exception:
+                # Skip servers where provider can't be detected
+                pass
+
         return ServerManager(connections)
 
     provider = await create_provider(provider_name, ssh)
