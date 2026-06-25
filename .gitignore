@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.ruff_cache/
+
+# Virtual environment
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Termainer
+*.log
+reports/
+.env
+
+# Local runtime / secrets
+config.yaml
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# Env variants with secrets (keep template)
+.env.*
+!.env.example
+
+# SSH and cloud tooling
+.ssh/
+.aws/
+.kube/
+
+# Local dumps
+*.dump
