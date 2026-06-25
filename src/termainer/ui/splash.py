@@ -4,7 +4,7 @@ import asyncio
 
 from textual.app import ComposeResult
 from textual.containers import Center, Horizontal, Vertical
-from textual.events import Click
+from textual.events import Click, Resize
 from textual.screen import Screen
 from textual.widgets import Static
 
@@ -146,7 +146,24 @@ class SplashScreen(Screen):
         )
 
     async def on_mount(self) -> None:
+        self._apply_responsive_mode(self.size.width, self.size.height)
         asyncio.create_task(self._auto_dismiss())
+
+    def on_resize(self, event: Resize) -> None:
+        self._apply_responsive_mode(event.size.width, event.size.height)
+
+    def _apply_responsive_mode(self, width: int, height: int) -> None:
+        compact = width < 130 or height < 40
+        ultra_compact = width < 100 or height < 30
+        root = self.query_one("#splash-root", Vertical)
+        if compact:
+            root.add_class("compact")
+        else:
+            root.remove_class("compact")
+        if ultra_compact:
+            root.add_class("ultra-compact")
+        else:
+            root.remove_class("ultra-compact")
 
     def on_key(self, event) -> None:
         if event.key == "enter":

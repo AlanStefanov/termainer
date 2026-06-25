@@ -7,6 +7,7 @@ from typing import List
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.events import Resize
 from textual.screen import Screen
 from textual.widgets import Button, Static
 
@@ -132,8 +133,25 @@ class EnvironmentScreen(Screen):
         return card
 
     def on_mount(self) -> None:
+        self._apply_responsive_mode(self.size.width, self.size.height)
         if self._card_ids:
             self.query_one(f"#{self._card_ids[0]}").focus()
+
+    def on_resize(self, event: Resize) -> None:
+        self._apply_responsive_mode(event.size.width, event.size.height)
+
+    def _apply_responsive_mode(self, width: int, height: int) -> None:
+        compact = width < 120 or height < 34
+        ultra_compact = width < 95 or height < 28
+        root = self.query_one("#env-root", Vertical)
+        if compact:
+            root.add_class("compact")
+        else:
+            root.remove_class("compact")
+        if ultra_compact:
+            root.add_class("ultra-compact")
+        else:
+            root.remove_class("ultra-compact")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id or ""

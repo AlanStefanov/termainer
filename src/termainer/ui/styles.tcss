@@ -143,6 +143,30 @@ Dashboard {
     margin-top: 1;
 }
 
+#splash-root.compact {
+    padding: 0 1;
+}
+
+#splash-root.compact #splash-about-row {
+    height: auto;
+}
+
+#splash-root.compact #splash-icon-wrap {
+    display: none;
+}
+
+#splash-root.compact #splash-bottom-row {
+    display: none;
+}
+
+#splash-root.compact #splash-main-card {
+    height: auto;
+}
+
+#splash-root.ultra-compact #splash-main-card {
+    display: none;
+}
+
 /* Environment selector */
 #env-root {
     height: 100%;
@@ -221,6 +245,26 @@ Dashboard {
     margin-top: 1;
     text-align: center;
     color: #c3ccd8;
+}
+
+#env-root.compact {
+    padding: 1 2;
+}
+
+#env-root.compact .env-card {
+    padding: 0 1;
+}
+
+#env-root.ultra-compact #env-copy {
+    display: none;
+}
+
+#env-root.ultra-compact .env-card-provider {
+    display: none;
+}
+
+#env-root.ultra-compact .env-card-button {
+    width: 100%;
 }
 
 /* Dashboard */
@@ -423,6 +467,68 @@ Dashboard {
     min-width: 0;
     background: #01050a;
     color: #d8dee9;
+}
+
+#dashboard-root.compact #top-tagline {
+    display: none;
+}
+
+#dashboard-root.compact #top-status {
+    width: 1fr;
+    content-align: right middle;
+}
+
+#dashboard-root.compact #sidebar {
+    width: 32;
+}
+
+#dashboard-root.compact #logs-panel {
+    height: 14;
+}
+
+#dashboard-root.compact #container-list > ContainerItem {
+    height: 2;
+}
+
+#dashboard-root.compact .footer-extended {
+    display: none;
+}
+
+#dashboard-root.ultra-compact #dashboard-body {
+    layout: vertical;
+}
+
+#dashboard-root.ultra-compact #sidebar {
+    width: 100%;
+    height: 12;
+    margin-right: 0;
+    margin-bottom: 1;
+}
+
+#dashboard-root.ultra-compact #workspace {
+    height: 1fr;
+}
+
+#dashboard-root.ultra-compact #top-panels {
+    layout: vertical;
+    height: 16;
+}
+
+#dashboard-root.ultra-compact #details-panel {
+    margin-right: 0;
+    margin-bottom: 1;
+}
+
+#dashboard-root.ultra-compact #logs-panel {
+    height: 1fr;
+}
+
+#dashboard-root.ultra-compact #bottom-bar {
+    display: none;
+}
+
+#dashboard-root.ultra-compact #sidebar-help {
+    height: 2;
 }
 
 .danger-key {

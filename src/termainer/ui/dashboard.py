@@ -8,6 +8,7 @@ from rich.markup import escape
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.events import Resize
 from textual.screen import ModalScreen, Screen
 from textual.widgets import Button, Input, Label, ListView, Static
 
@@ -57,6 +58,8 @@ class Dashboard(Screen):
         self._selected_server: Optional[str] = None
         self._log_task: Optional[asyncio.Task] = None
         self._stats_task: Optional[asyncio.Task] = None
+        self._compact_mode = False
+        self._ultra_compact_mode = False
 
     @property
     def _active_provider(self) -> Provider:
@@ -193,10 +196,10 @@ class Dashboard(Screen):
         controls = [
             Static("[reverse] p [/reverse] [bold white]Pausar Logs[/]", classes="footer-key"),
             Static("[reverse] e [/reverse] [bold white]Exportar Logs[/]", classes="footer-key"),
-            Static("[reverse] d [/reverse] [bold white]Detalles[/]", classes="footer-key"),
-            Static("[reverse] s [/reverse] [bold white]Stats[/]", classes="footer-key"),
-            Static("[reverse] n [/reverse] [bold white]Siguiente Panel[/]", classes="footer-key"),
-            Static("[reverse] ←/→ [/reverse] [bold white]Cambiar Panel[/]", classes="footer-key"),
+            Static("[reverse] d [/reverse] [bold white]Detalles[/]", classes="footer-key footer-extended"),
+            Static("[reverse] s [/reverse] [bold white]Stats[/]", classes="footer-key footer-extended"),
+            Static("[reverse] n [/reverse] [bold white]Siguiente Panel[/]", classes="footer-key footer-extended"),
+            Static("[reverse] ←/→ [/reverse] [bold white]Cambiar Panel[/]", classes="footer-key footer-extended"),
         ]
         if not self._is_kubernetes:
             controls.extend([
@@ -214,7 +217,28 @@ class Dashboard(Screen):
         return Horizontal(*controls, id="bottom-bar")
 
     def on_mount(self) -> None:
+        self._apply_responsive_mode(self.size.width, self.size.height)
         self.run_worker(self._refresh_containers())
+
+    def on_resize(self, event: Resize) -> None:
+        self._apply_responsive_mode(event.size.width, event.size.height)
+
+    def _apply_responsive_mode(self, width: int, height: int) -> None:
+        compact = width < 150 or height < 42
+        ultra_compact = width < 110 or height < 32
+        self._compact_mode = compact
+        self._ultra_compact_mode = ultra_compact
+
+        root = self.query_one("#dashboard-root", Vertical)
+        if compact:
+            root.add_class("compact")
+        else:
+            root.remove_class("compact")
+
+        if ultra_compact:
+            root.add_class("ultra-compact")
+        else:
+            root.remove_class("ultra-compact")
 
     async def _refresh_containers(self) -> None:
         list_view = self.query_one("#container-list", ListView)
