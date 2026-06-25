@@ -153,8 +153,8 @@ class SplashScreen(Screen):
         self._apply_responsive_mode(event.size.width, event.size.height)
 
     def _apply_responsive_mode(self, width: int, height: int) -> None:
-        compact = width < 130 or height < 40
-        ultra_compact = width < 100 or height < 30
+        compact = width < 105 or height < 30
+        ultra_compact = width < 85 or height < 24
         root = self.query_one("#splash-root", Vertical)
         if compact:
             root.add_class("compact")

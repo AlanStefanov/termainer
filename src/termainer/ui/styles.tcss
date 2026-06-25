@@ -15,6 +15,7 @@ Dashboard {
     padding: 0 2 1 2;
     border: solid #3f4b5c;
     background: #02070c;
+    overflow-y: auto;
 }
 
 #splash-top-line {
@@ -156,7 +157,7 @@ Dashboard {
 }
 
 #splash-root.compact #splash-bottom-row {
-    display: none;
+    height: auto;
 }
 
 #splash-root.compact #splash-main-card {
@@ -164,6 +165,10 @@ Dashboard {
 }
 
 #splash-root.ultra-compact #splash-main-card {
+    height: auto;
+}
+
+#splash-root.ultra-compact #splash-flow-diagram {
     display: none;
 }
 
