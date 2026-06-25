@@ -15,6 +15,7 @@ Dashboard {
     padding: 0 2 1 2;
     border: solid #3f4b5c;
     background: #02070c;
+    overflow-y: auto;
 }
 
 #splash-top-line {
@@ -43,6 +44,13 @@ Dashboard {
 #splash-logo-block {
     width: auto;
     height: 8;
+}
+
+#splash-enter-hint {
+    height: 1;
+    text-align: center;
+    color: #00d4ff;
+    margin-top: 1;
 }
 
 .splash-tagline {
@@ -143,6 +151,46 @@ Dashboard {
     margin-top: 1;
 }
 
+#splash-root.compact {
+    padding: 0 1;
+}
+
+#splash-root.compact #splash-logo-block {
+    height: 3;
+}
+
+#splash-root.compact .splash-logo {
+    text-style: bold;
+}
+
+#splash-root.compact #splash-about-row {
+    height: auto;
+}
+
+#splash-root.compact #splash-icon-wrap {
+    display: none;
+}
+
+#splash-root.compact #splash-bottom-row {
+    height: auto;
+}
+
+#splash-root.compact #splash-main-card {
+    height: auto;
+}
+
+#splash-root.ultra-compact #splash-main-card {
+    height: auto;
+}
+
+#splash-root.ultra-compact #splash-enter-hint {
+    margin-top: 0;
+}
+
+#splash-root.ultra-compact #splash-flow-diagram {
+    display: none;
+}
+
 /* Environment selector */
 #env-root {
     height: 100%;
@@ -221,6 +269,26 @@ Dashboard {
     margin-top: 1;
     text-align: center;
     color: #c3ccd8;
+}
+
+#env-root.compact {
+    padding: 1 2;
+}
+
+#env-root.compact .env-card {
+    padding: 0 1;
+}
+
+#env-root.ultra-compact #env-copy {
+    display: none;
+}
+
+#env-root.ultra-compact .env-card-provider {
+    display: none;
+}
+
+#env-root.ultra-compact .env-card-button {
+    width: 100%;
 }
 
 /* Dashboard */
@@ -425,6 +493,68 @@ Dashboard {
     color: #d8dee9;
 }
 
+#dashboard-root.compact #top-tagline {
+    display: none;
+}
+
+#dashboard-root.compact #top-status {
+    width: 1fr;
+    content-align: right middle;
+}
+
+#dashboard-root.compact #sidebar {
+    width: 36;
+}
+
+#dashboard-root.compact #logs-panel {
+    height: 15;
+}
+
+#dashboard-root.compact #container-list > ContainerItem {
+    height: 2;
+}
+
+#dashboard-root.compact .footer-extended {
+    display: none;
+}
+
+#dashboard-root.ultra-compact #dashboard-body {
+    layout: vertical;
+}
+
+#dashboard-root.ultra-compact #sidebar {
+    width: 100%;
+    height: 12;
+    margin-right: 0;
+    margin-bottom: 1;
+}
+
+#dashboard-root.ultra-compact #workspace {
+    height: 1fr;
+}
+
+#dashboard-root.ultra-compact #top-panels {
+    layout: vertical;
+    height: 16;
+}
+
+#dashboard-root.ultra-compact #details-panel {
+    margin-right: 0;
+    margin-bottom: 1;
+}
+
+#dashboard-root.ultra-compact #logs-panel {
+    height: 1fr;
+}
+
+#dashboard-root.ultra-compact #bottom-bar {
+    display: none;
+}
+
+#dashboard-root.ultra-compact #sidebar-help {
+    height: 2;
+}
+
 .danger-key {
     color: #ff8a8a;
 }
@@ -445,6 +575,14 @@ HelpModal {
     padding: 1 2;
     background: #02070c;
     border: solid #7b4fb2;
+}
+
+#help-scroll {
+    height: 16;
+    border: solid #2f3947;
+    padding: 0 1;
+    margin-bottom: 1;
+    background: #01050a;
 }
 
 #remove-title {

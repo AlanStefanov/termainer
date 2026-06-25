@@ -1,5 +1,27 @@
 <div align="center">
 
+# Alan Stefanov
+
+### Engineering Manager  · Developer Experience · Platform Engineering · FinOps · Cloud Architecture
+
+Construyendo plataformas escalables, liderando equipos y optimizando operaciones cloud.
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Alan_Stefanov-blue?style=for-the-badge&logo=linkedin)](https://www.linkedin.com/in/alanstefanov/)
+[![Email](https://img.shields.io/badge/Email-alan.emanuel.stefanov@gmail.com-red?style=for-the-badge&logo=gmail)](mailto:alan.emanuel.stefanov@gmail.com)
+[![GitHub](https://img.shields.io/badge/GitHub-AlanStefanov-black?style=for-the-badge&logo=github)](https://github.com/AlanStefanov)
+
+</div>
+
+---
+
+<p align="center">
+  <img src="https://i.ibb.co/BKK1DspJ/Black-Minimal-Motivation-Quote-Linked-In-Banner-1.png" alt="Alan Stefanov Banner"/>
+</p>
+
+---
+
+<div align="center">
+
 # Termainer
 
 **Observabilidad y operación de contenedores directamente desde tu terminal.**
@@ -16,10 +38,6 @@
 <br>
 
 > Todo lo que necesitas saber de todos tus contenedores, en una sola terminal.
-
-<br>
-
-![UI Demo](docs/UI_post-home.png)
 
 </div>
 
@@ -140,7 +158,7 @@ servers:
     provider: kubernetes
 ```
 
-Ver la [Guía de Configuración](docs/configuration-reference-es.md) completa (en español).
+Ver la [Guía de Configuración](guide/configuration-reference-es.md) completa (en español).
 
 ### Un solo servidor rápido (.env)
 
@@ -156,6 +174,12 @@ termainer --host ec2-54-123-45-67.us-east-1.compute.amazonaws.com \
 ---
 
 ## Uso
+
+### Tips de Visualización (Baja Resolución)
+
+Si tu terminal tiene poco alto visible (por ejemplo 1366x768), bajá el zoom una o dos veces antes de abrir Termainer. En la mayoría de terminales es Control + Menos.
+
+Termainer tiene modos responsive, pero reducir un poco el zoom mejora la legibilidad y evita recortes de paneles.
 
 ### Local
 
@@ -305,11 +329,8 @@ CLI (termainer)
 
 ## Documentación
 
-- [Guía de Configuración](docs/configuration-reference-es.md)
-- [Configuration Reference](docs/configuration-reference.md) (English)
-- [Branding y Visión](docs/branding.md)
-- [Diseño Técnico](docs/design.md)
-- [Roadmap](docs/roadmap.md)
+- [Guía de Configuración](guide/configuration-reference-es.md)
+- [Configuration Reference](guide/configuration-reference.md) (English)
 
 ---
 

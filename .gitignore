@@ -24,6 +24,7 @@ Thumbs.db
 *.log
 reports/
 .env
+docs/
 
 # Local runtime / secrets
 config.yaml

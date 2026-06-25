@@ -1,5 +1,27 @@
 <div align="center">
 
+# Alan Stefanov
+
+### Engineering Manager  · Developer Experience · Platform Engineering · FinOps · Cloud Architecture
+
+Building scalable platforms, leading teams, and optimizing cloud operations.
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Alan_Stefanov-blue?style=for-the-badge&logo=linkedin)](https://www.linkedin.com/in/alanstefanov/)
+[![Email](https://img.shields.io/badge/Email-alan.emanuel.stefanov@gmail.com-red?style=for-the-badge&logo=gmail)](mailto:alan.emanuel.stefanov@gmail.com)
+[![GitHub](https://img.shields.io/badge/GitHub-AlanStefanov-black?style=for-the-badge&logo=github)](https://github.com/AlanStefanov)
+
+</div>
+
+---
+
+<p align="center">
+  <img src="https://i.ibb.co/BKK1DspJ/Black-Minimal-Motivation-Quote-Linked-In-Banner-1.png" alt="Alan Stefanov Banner"/>
+</p>
+
+---
+
+<div align="center">
+
 # Termainer
 
 **Container observability and operations directly from your terminal.**
@@ -16,10 +38,6 @@
 <br>
 
 > Everything you need to know about all your containers, in a single terminal.
-
-<br>
-
-![UI Demo](docs/UI_post-home.png)
 
 </div>
 
@@ -140,7 +158,7 @@ servers:
     provider: kubernetes
 ```
 
-See the full [Configuration Reference](docs/configuration-reference.md) for all options.
+See the full [Configuration Reference](guide/configuration-reference.md) for all options.
 
 ### Quick single-server (.env)
 
@@ -156,6 +174,12 @@ termainer --host ec2-54-123-45-67.us-east-1.compute.amazonaws.com \
 ---
 
 ## Usage
+
+### Display Tips (Low Resolution)
+
+If your terminal has low vertical space (for example 1366x768), reduce terminal zoom one or two steps before launching Termainer. In most terminals this is Control + Minus.
+
+Termainer also has responsive modes, but zooming out slightly improves readability and avoids panel clipping.
 
 ### Local
 
@@ -305,11 +329,8 @@ CLI (termainer)
 
 ## Documentation
 
-- [Configuration Reference](docs/configuration-reference.md)
-- [Configuration Reference (ES)](docs/configuration-reference-es.md)
-- [Branding & Vision](docs/branding.md) (Spanish)
-- [Technical Design](docs/design.md) (Spanish)
-- [Roadmap](docs/roadmap.md) (Spanish)
+- [Configuration Reference](guide/configuration-reference.md)
+- [Configuration Reference (ES)](guide/configuration-reference-es.md)
 
 ---
 
