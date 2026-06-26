@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -64,6 +65,7 @@ class Dashboard(Screen):
         self._compact_mode = False
         self._ultra_compact_mode = False
         self._active_ssh_conn: Optional[SSHConnection] = None  # current SSH connection
+        self._saved_docker_host: Optional[str] = None
 
     @property
     def _active_provider(self) -> Optional[Provider]:
@@ -170,20 +172,20 @@ class Dashboard(Screen):
         self.run_worker(self._switch_server(str(event.value)))
 
     async def _switch_server(self, value: str) -> None:
-        """Switch active server. For SSH servers, open ONE connection (close previous)."""
+        """Switch active server. For SSH servers, open an SSH tunnel to forward
+        the remote Docker socket locally so all docker commands run locally."""
         self._cancel_tasks()
         self._selected_container = None
         self._selected_info = {}
         self._selected_server = None
 
+        # Close previous tunnel if any
+        if self._active_ssh_conn:
+            await self._active_ssh_conn.close_tunnel()
+            self._active_ssh_conn = None
+        self._restore_docker_host()
+
         if value.startswith("local:"):
-            # Close any open SSH connection
-            if self._active_ssh_conn:
-                try:
-                    self._active_ssh_conn.close()
-                except Exception:
-                    pass
-                self._active_ssh_conn = None
             label = value[len("local:"):]
             self._active_server = label
 
@@ -194,21 +196,20 @@ class Dashboard(Screen):
                 self.notify(f"Servidor '{alias}' no encontrado en ~/.ssh/config", severity="error")
                 return
 
-            # Close previous SSH connection
-            if self._active_ssh_conn:
-                try:
-                    self._active_ssh_conn.close()
-                except Exception:
-                    pass
-                self._active_ssh_conn = None
-
-            # Open new SSH connection (only now)
             ssh_server = ssh_servers[alias]
             ssh_conn = build_ssh_from_ssh_server(ssh_server)
-            self._active_ssh_conn = ssh_conn
-            provider = DockerProvider(ssh=ssh_conn)
 
-            # Add or replace in manager
+            try:
+                tunnel_socket = await ssh_conn.create_tunnel()
+            except RuntimeError as e:
+                self.notify(f"Error al conectar con '{alias}': {e}", severity="error")
+                return
+
+            self._active_ssh_conn = ssh_conn
+            self._saved_docker_host = os.environ.get("DOCKER_HOST")
+            os.environ["DOCKER_HOST"] = f"unix://{tunnel_socket}"
+            provider = DockerProvider()
+
             existing = [s for s in self._server_manager.servers if s.label == alias]
             if existing:
                 self._server_manager.servers.remove(existing[0])
@@ -538,6 +539,7 @@ class Dashboard(Screen):
 
     def action_quit(self) -> None:
         self._cancel_tasks()
+        self._close_active_tunnel()
         self.app.exit()
 
     def action_show_help(self) -> None:
@@ -545,15 +547,27 @@ class Dashboard(Screen):
 
     def action_back_to_environment(self) -> None:
         self._cancel_tasks()
-        # Close SSH connection if one is active
+        self._close_active_tunnel()
+        from .environment import EnvironmentScreen
+        self.app.switch_screen(EnvironmentScreen(self._root_server_manager))
+
+    def _close_active_tunnel(self) -> None:
+        """Close the active SSH tunnel and restore DOCKER_HOST."""
         if self._active_ssh_conn:
             try:
-                self._active_ssh_conn.close()
+                asyncio.create_task(self._active_ssh_conn.close_tunnel())
             except Exception:
                 pass
             self._active_ssh_conn = None
-        from .environment import EnvironmentScreen
-        self.app.switch_screen(EnvironmentScreen(self._root_server_manager))
+        self._restore_docker_host()
+
+    def _restore_docker_host(self) -> None:
+        """Restore the original DOCKER_HOST value before the tunnel was created."""
+        if self._saved_docker_host is not None:
+            os.environ["DOCKER_HOST"] = self._saved_docker_host
+            self._saved_docker_host = None
+        else:
+            os.environ.pop("DOCKER_HOST", None)
 
     @staticmethod
     def _container_name(container: ContainerSummary, fallback: str) -> str:

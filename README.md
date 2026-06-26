@@ -243,6 +243,14 @@ termainer
 
 You'll see all servers from your SSH config automatically loaded in the server dropdown. No configuration files needed!
 
+> **⚠️ Important:** Remote servers must have the Docker CLI installed and the Docker
+> daemon socket accessible **without `sudo`**. The user connecting via SSH must be
+> a member of the `docker` group (or equivalent) so that `docker ps`, `docker inspect`,
+> etc. work without privilege escalation. Termainer uses SSH port forwarding to
+> tunnel the remote Docker socket to a local Unix socket, so all Docker commands
+> run locally against the forwarded socket — this avoids issues with remote Docker
+> versions, PATH, and `--format` compatibility.
+
 #### SSH Authentication Methods
 
 | Method | How to use |

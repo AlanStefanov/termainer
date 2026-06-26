@@ -19,7 +19,7 @@ class SSHServer:
     ) -> None:
         self.host = host  # The "Host" identifier (connection alias)
         self.hostname = hostname or host  # Actual hostname to connect to
-        self.user = user or "root"  # SSH user (defaults to root for container mgmt)
+        self.user = user  # None = let SSH use its default (local user)
         self.port = port
         self.identity_file = identity_file
 
@@ -97,7 +97,7 @@ def parse_ssh_config(config_path: Optional[str] = None) -> Dict[str, SSHServer]:
 def _build_ssh_server(host: str, config: Dict[str, str]) -> SSHServer:
     """Build an SSHServer object from parsed config dict."""
     hostname = config.get("hostname", host)
-    user = config.get("user", "root")
+    user = config.get("user")  # None if not specified → let SSH use local user
     port = int(config.get("port", "22"))
     identity_file = config.get("identityfile")
 

@@ -36,18 +36,31 @@ async def test_docker_is_available_false() -> None:
 async def test_docker_list_containers() -> None:
     provider = DockerProvider()
     provider._docker_path = "/usr/bin/docker"
-    mock_run = AsyncMock(return_value='{"ID": "abc", "Names": "test"}\n')
+    mock_run = AsyncMock(side_effect=[
+        "abc123\n",  # ps -a -q
+        json.dumps([{  # inspect
+            "Id": "abc123",
+            "Name": "/test",
+            "Config": {"Image": "nginx"},
+            "State": {"Status": "running"},
+            "Created": "2024-01-01T00:00:00Z",
+            "NetworkSettings": {"Ports": {"80/tcp": [{"HostPort": "8080"}]}, "Networks": {"bridge": {}}},
+            "HostConfig": {"RestartPolicy": {"Name": "always"}},
+        }]),
+    ])
     provider._run = mock_run
     result = await provider.list_containers()
     assert len(result) == 1
-    assert result[0]["id"] == "abc"
+    assert result[0]["id"] == "abc123"
+    assert result[0]["names"] == "test"
+    assert result[0]["status"] == "running"
 
 
 @pytest.mark.asyncio
 async def test_docker_list_containers_empty() -> None:
     provider = DockerProvider()
     provider._docker_path = "/usr/bin/docker"
-    provider._run = AsyncMock(return_value="")
+    provider._run = AsyncMock(return_value="\n")
     result = await provider.list_containers()
     assert result == []
 
@@ -56,15 +69,36 @@ async def test_docker_list_containers_empty() -> None:
 async def test_docker_list_containers_multiple() -> None:
     provider = DockerProvider()
     provider._docker_path = "/usr/bin/docker"
-    raw = '\n'.join([
-        json.dumps({"ID": "c1", "Names": "first", "Status": "running"}),
-        json.dumps({"ID": "c2", "Names": "second", "Status": "exited"}),
+    mock_run = AsyncMock(side_effect=[
+        "c1\nc2\n",  # ps -a -q
+        json.dumps([  # inspect
+            {
+                "Id": "c1",
+                "Name": "/first",
+                "Config": {"Image": "img1"},
+                "State": {"Status": "running"},
+                "Created": "2024-01-01T00:00:00Z",
+                "NetworkSettings": {"Ports": {"80/tcp": [{"HostPort": "8080"}]}, "Networks": {"bridge": {}}},
+                "HostConfig": {"RestartPolicy": {"Name": ""}},
+            },
+            {
+                "Id": "c2",
+                "Name": "/second",
+                "Config": {"Image": "img2"},
+                "State": {"Status": "exited"},
+                "Created": "2024-01-02T00:00:00Z",
+                "NetworkSettings": {"Ports": {}, "Networks": {}},
+                "HostConfig": {"RestartPolicy": {"Name": ""}},
+            },
+        ]),
     ])
-    provider._run = AsyncMock(return_value=raw)
+    provider._run = mock_run
     result = await provider.list_containers()
     assert len(result) == 2
     assert result[0]["id"] == "c1"
     assert result[1]["names"] == "second"
+    assert result[0]["status"] == "running"
+    assert result[1]["status"] == "exited"
 
 
 @pytest.mark.asyncio
