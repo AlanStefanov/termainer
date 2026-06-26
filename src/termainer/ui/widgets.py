@@ -43,7 +43,6 @@ class ContainerItem(ListItem):
         )
         if isinstance(name, list):
             name = name[0]
-        cid = self.container.get("id", "")
         status = self.container.get("status", "")
         namespace = self.container.get("namespace", "")
         ready = self.container.get("ready", "")

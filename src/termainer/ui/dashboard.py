@@ -12,8 +12,11 @@ from textual.events import Resize
 from textual.screen import ModalScreen, Screen
 from textual.widgets import Button, Input, Label, ListView, Static, Select
 
+from ..config import build_ssh_from_ssh_server, get_configured_ssh_servers
 from ..providers.base import ContainerSummary, Provider
-from ..server_manager import ServerManager
+from ..providers.docker import DockerProvider
+from ..remote.ssh import SSHConnection
+from ..server_manager import ServerConnection, ServerManager
 from ..utils.helpers import build_report_header, format_timestamp
 from ..version import VERSION
 from .widgets import ContainerItem, DetailsWidget, LogWidget, StatsWidget
@@ -60,11 +63,15 @@ class Dashboard(Screen):
         self._stats_task: Optional[asyncio.Task] = None
         self._compact_mode = False
         self._ultra_compact_mode = False
+        self._active_ssh_conn: Optional[SSHConnection] = None  # current SSH connection
 
     @property
-    def _active_provider(self) -> Provider:
+    def _active_provider(self) -> Optional[Provider]:
         if self._active_server:
-            return self._server_manager.get_provider(self._active_server)
+            try:
+                return self._server_manager.get_provider(self._active_server)
+            except KeyError:
+                pass
         return self._server_manager.servers[0].provider if self._server_manager.servers else None
 
     @property
@@ -133,39 +140,84 @@ class Dashboard(Screen):
         return Vertical(brand_row, id="top-bar")
 
     def _build_server_selector(self) -> Optional[Select]:
-        """Build a Select widget for server switching (multi-server only)."""
-        if self._server_manager.server_count <= 1:
+        """Build a Select widget with local servers + SSH aliases from ~/.ssh/config.
+        No SSH connections are made here — just reads the config file."""
+        ssh_servers = get_configured_ssh_servers()
+        total = self._server_manager.server_count + len(ssh_servers)
+        if total <= 1 and not ssh_servers:
             return None
 
         options: list[tuple[str, str]] = []
-        
-        # "Todos" option
-        options.append(("Todos", ""))
-        
-        # Individual servers
-        for label in self._server_manager.server_labels:
-            options.append((label, label))
 
-        select = Select(options, id="server-selector", classes="server-selector")
-        return select
+        # Local servers (already connected)
+        for label in self._server_manager.server_labels:
+            options.append((f"⬡ {label}", f"local:{label}"))
+
+        # SSH servers from ~/.ssh/config (no connection yet)
+        for alias, srv in ssh_servers.items():
+            options.append((f"⬢ {srv.display_name}", f"ssh:{alias}"))
+
+        if not options:
+            return None
+
+        return Select(options, id="server-selector", classes="server-selector",
+                      value=f"local:{self._server_manager.server_labels[0]}" if self._server_manager.server_labels else Select.BLANK)
 
     def on_select_changed(self, event: Select.Changed) -> None:
         """Handle server selector changes."""
-        if event.control.id != "server-selector":
+        if event.control.id != "server-selector" or event.value is Select.BLANK:
             return
-        new_server = event.value if event.value != "" else None
-        self._switch_server(new_server)
+        self.run_worker(self._switch_server(str(event.value)))
 
-    def _switch_server(self, label: Optional[str]) -> None:
-        """Switch active server and refresh containers."""
-        if label == self._active_server:
-            return
+    async def _switch_server(self, value: str) -> None:
+        """Switch active server. For SSH servers, open ONE connection (close previous)."""
         self._cancel_tasks()
-        self._active_server = label
         self._selected_container = None
         self._selected_info = {}
         self._selected_server = None
-        self.run_worker(self._refresh_containers())
+
+        if value.startswith("local:"):
+            # Close any open SSH connection
+            if self._active_ssh_conn:
+                try:
+                    self._active_ssh_conn.close()
+                except Exception:
+                    pass
+                self._active_ssh_conn = None
+            label = value[len("local:"):]
+            self._active_server = label
+
+        elif value.startswith("ssh:"):
+            alias = value[len("ssh:"):]
+            ssh_servers = get_configured_ssh_servers()
+            if alias not in ssh_servers:
+                self.notify(f"Servidor '{alias}' no encontrado en ~/.ssh/config", severity="error")
+                return
+
+            # Close previous SSH connection
+            if self._active_ssh_conn:
+                try:
+                    self._active_ssh_conn.close()
+                except Exception:
+                    pass
+                self._active_ssh_conn = None
+
+            # Open new SSH connection (only now)
+            ssh_server = ssh_servers[alias]
+            ssh_conn = build_ssh_from_ssh_server(ssh_server)
+            self._active_ssh_conn = ssh_conn
+            provider = DockerProvider(ssh=ssh_conn)
+
+            # Add or replace in manager
+            existing = [s for s in self._server_manager.servers if s.label == alias]
+            if existing:
+                self._server_manager.servers.remove(existing[0])
+            self._server_manager.servers.append(
+                ServerConnection(label=alias, provider=provider, ssh=ssh_conn)
+            )
+            self._active_server = alias
+
+        await self._refresh_containers()
 
     def _top_panels(self) -> Horizontal:
         resource_singular = "pod" if self._is_kubernetes else "contenedor"
@@ -493,6 +545,13 @@ class Dashboard(Screen):
 
     def action_back_to_environment(self) -> None:
         self._cancel_tasks()
+        # Close SSH connection if one is active
+        if self._active_ssh_conn:
+            try:
+                self._active_ssh_conn.close()
+            except Exception:
+                pass
+            self._active_ssh_conn = None
         from .environment import EnvironmentScreen
         self.app.switch_screen(EnvironmentScreen(self._root_server_manager))
 

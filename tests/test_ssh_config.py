@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 import tempfile
-import pytest
 
 from termainer.ssh_config import parse_ssh_config, SSHServer, filter_ssh_servers_for_container_mgmt, get_ssh_servers
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 
 from .remote.ssh import SSHConnection
 from .ssh_config import SSHServer, get_ssh_servers, filter_ssh_servers_for_container_mgmt

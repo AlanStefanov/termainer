@@ -73,7 +73,7 @@ async def test_docker_inspect() -> None:
     provider._docker_path = "/usr/bin/docker"
     provider._run = AsyncMock(return_value=json.dumps([{"Id": "abc", "Config": {"Env": ["FOO=bar"]}}]))
     result = await provider.inspect("abc")
-    assert result["id"] == "abc"
+    assert result["Id"] == "abc"
 
 
 @pytest.mark.asyncio
@@ -82,7 +82,7 @@ async def test_docker_inspect_single_object() -> None:
     provider._docker_path = "/usr/bin/docker"
     provider._run = AsyncMock(return_value=json.dumps({"Id": "abc"}))
     result = await provider.inspect("abc")
-    assert result["id"] == "abc"
+    assert result["Id"] == "abc"
 
 
 @pytest.mark.asyncio
@@ -244,10 +244,11 @@ async def test_podman_is_available_false() -> None:
 async def test_podman_list_containers() -> None:
     provider = PodmanProvider()
     provider._podman_path = "/usr/bin/podman"
-    provider._run = AsyncMock(return_value='{"ID": "abc", "Names": "test"}\n')
+    # Podman returns its own JSON format (list of objects)
+    provider._run = AsyncMock(return_value=json.dumps([{"Id": "abc", "Names": ["test"]}]))
     result = await provider.list_containers()
     assert len(result) == 1
-    assert result[0]["id"] == "abc"
+    assert result[0]["Id"] == "abc"
 
 
 # ── KubernetesProvider ────────────────────────────────────────
@@ -256,9 +257,10 @@ async def test_podman_list_containers() -> None:
 async def test_kubernetes_list_containers() -> None:
     provider = KubernetesProvider()
     provider._kubectl_path = "/usr/bin/kubectl"
-    provider._run = AsyncMock(return_value=json.dumps([
-        {"metadata": {"name": "pod1"}, "status": {"phase": "Running"}}
-    ]))
+    # kubectl get pods -o json returns {"items": [...]}
+    provider._run = AsyncMock(return_value=json.dumps({
+        "items": [{"metadata": {"name": "pod1", "namespace": "default"}, "status": {"phase": "Running"}, "spec": {"containers": []}}]
+    }))
     result = await provider.list_containers()
     assert len(result) == 1
     assert result[0]["name"] == "pod1"
@@ -284,9 +286,10 @@ async def test_openshift_is_available_false() -> None:
 async def test_openshift_list_containers() -> None:
     provider = OpenShiftProvider()
     provider._oc_path = "/usr/bin/oc"
-    provider._run = AsyncMock(return_value=json.dumps([
-        {"metadata": {"name": "pod1"}, "status": {"phase": "Running"}}
-    ]))
+    # oc get pods -o json returns {"items": [...]}
+    provider._run = AsyncMock(return_value=json.dumps({
+        "items": [{"metadata": {"name": "pod1", "namespace": "default"}, "status": {"phase": "Running"}, "spec": {"containers": []}}]
+    }))
     result = await provider.list_containers()
     assert len(result) == 1
     assert result[0]["name"] == "pod1"
