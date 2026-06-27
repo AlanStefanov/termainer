@@ -13,23 +13,23 @@ from ..version import VERSION
 
 
 LOGO = """\
-[bold green] _______ ______ _____  __  __          _____ _   _ ______ _____  [/]
-[bold green]|__   __|  ____|  __ \\|  \\/  |   /\\   |_   _| \\ | |  ____|  __ \\ [/]
-[bold green]   | |  | |__  | |__) | \\  / |  /  \\    | | |  \\| | |__  | |__) |[/]
-[bold green]   | |  |  __| |  _  /| |\\/| | / /\\ \\   | | | . ` |  __| |  _  / [/]
-[bold green]   | |  | |____| | \\ \\| |  | |/ ____ \\ _| |_| |\\  | |____| | \\ \\ [/]
-[bold green]   |_|  |______|_|  \\_\\_|  |_/_/    \\_\\_____|_| \\_|______|_|  \\_\\ [/]"""
+[bold #22d3ee] _______ ______ _____  __  __          _____ _   _ ______ _____  [/]
+[bold #22d3ee]|__   __|  ____|  __ \\|  \\/  |   /\\   |_   _| \\ | |  ____|  __ \\ [/]
+[bold #22d3ee]   | |  | |__  | |__) | \\  / |  /  \\    | | |  \\| | |__  | |__) |[/]
+[bold #22d3ee]   | |  |  __| |  _  /| |\\/| | / /\\ \\   | | | . ` |  __| |  _  / [/]
+[bold #22d3ee]   | |  | |____| | \\ \\| |  | |/ ____ \\ _| |_| |\\  | |____| | \\ \\ [/]
+[bold #22d3ee]   |_|  |______|_|  \\_\\_|  |_/_/    \\_\\_____|_| \\_|______|_|  \\_\\ [/]"""
 
-LOGO_COMPACT = "[bold green]TERMAINER[/]"
+LOGO_COMPACT = "[bold #22d3ee]TERMAINER[/]"
 
 CONTAINER_ICON = """\
-[bold cyan]            ┌─────────────────┐[/]
-[bold cyan]         ┌──┘                 └──┐[/]
-[bold cyan]         │    │ │ │ │ │ │ │      │[/]
-[bold cyan]         │    │ │ │ │ │ │ │      │[/]
-[bold cyan]         └──┐                 ┌──┘[/]
-[bold cyan]            └─────────────────┘[/]
-[dim cyan]             observability core[/]"""
+[bold #22d3ee]            ┌─────────────────┐[/]
+[bold #22d3ee]         ┌──┘                 └──┐[/]
+[bold #22d3ee]         │    │ │ │ │ │ │ │      │[/]
+[bold #22d3ee]         │    │ │ │ │ │ │ │      │[/]
+[bold #22d3ee]         └──┐                 ┌──┘[/]
+[bold #22d3ee]            └─────────────────┘[/]
+[dim #22d3ee]             observability core[/]"""
 
 
 class SplashScreen(Screen):
@@ -45,21 +45,21 @@ class SplashScreen(Screen):
             Center(
                 Vertical(
                     Static(LOGO, classes="splash-logo", id="splash-logo-text"),
-                    Static(f"[bold cyan]v{VERSION}[/]", classes="splash-version"),
+                    Static(f"[bold #22d3ee]v{VERSION}[/]", classes="splash-version"),
                     id="splash-logo-block",
                 )
             ),
             Static(
-                "[cyan]▣[/] Todo lo que necesitas saber de [bold green]TODOS[/] tus contenedores en una sola terminal",
+                "[#22d3ee]▣[/] Todo lo que necesitas saber de [bold #4ade80]TODOS[/] tus contenedores en una sola terminal",
                 classes="splash-tagline",
             ),
             Vertical(
                 Horizontal(
                     Vertical(
-                        Static("[bold cyan]¿QUÉ ES TERMAINER?[/]", classes="section-title"),
+                        Static("[bold #22d3ee]¿QUÉ ES TERMAINER?[/]", classes="section-title"),
                         Static(
-                            "[bold green]Termainer[/] es una TUI multiplataforma para inspección, monitoreo y depuración de\n"
-                            "contenedores [bold yellow]Docker[/], [bold cyan]Podman[/], [bold magenta]Kubernetes[/], [bold red]OpenShift[/] y [bold white]Swarm[/].\n\n"
+                            "[bold #22d3ee]Termainer[/] es una TUI multiplataforma para inspección, monitoreo y depuración de\n"
+                            "contenedores [bold #4ade80]Docker[/], [bold #22d3ee]Podman[/], [bold #22d3ee]Kubernetes[/], [bold #f87171]OpenShift[/] y [bold #fbbf24]Swarm[/].\n\n"
                             "Diseñada para desarrolladores y equipos DevOps que prefieren la velocidad y el control\n"
                             "de la terminal, Termainer centraliza la información clave de tus contenedores en una\n"
                             "interfaz interactiva, rápida y poderosa.",
@@ -70,25 +70,25 @@ class SplashScreen(Screen):
                     Center(Static(CONTAINER_ICON, classes="splash-icon"), id="splash-icon-wrap"),
                     id="splash-about-row",
                 ),
-                Static("[bold magenta]CARACTERÍSTICAS PRINCIPALES[/]", classes="section-title-center"),
+                Static("[bold #22d3ee]CARACTERÍSTICAS PRINCIPALES[/]", classes="section-title-center"),
                 Horizontal(
                     Vertical(
-                        Static("[bold green]▥ Stats en Tiempo Real[/]", classes="feat-title"),
+                        Static("[bold #4ade80]▥ Stats en Tiempo Real[/]", classes="feat-title"),
                         Static("[dim]Monitorea CPU, memoria\ny red al instante.[/]", classes="feat-desc"),
                         classes="feat-card",
                     ),
                     Vertical(
-                        Static("[bold yellow]▤ Logs en Vivo[/]", classes="feat-title"),
+                        Static("[bold #fbbf24]▤ Logs en Vivo[/]", classes="feat-title"),
                         Static("[dim]Visualiza y navega logs\ncon scroll suave.[/]", classes="feat-desc"),
                         classes="feat-card",
                     ),
                     Vertical(
-                        Static("[bold cyan]⌕ Inspección Detallada[/]", classes="feat-title"),
+                        Static("[bold #22d3ee]⌕ Inspección Detallada[/]", classes="feat-title"),
                         Static("[dim]Variables, redes,\nvolúmenes y más.[/]", classes="feat-desc"),
                         classes="feat-card",
                     ),
                     Vertical(
-                        Static("[bold magenta]⇶ Multi-Tech + SSH[/]", classes="feat-title"),
+                        Static("[bold #22d3ee]⇶ Multi-Tech + SSH[/]", classes="feat-title"),
                         Static("[dim]Docker, Podman, K8s,\nOpenShift, Swarm y multi-servidor.[/]", classes="feat-desc"),
                         classes="feat-card",
                     ),
@@ -98,51 +98,51 @@ class SplashScreen(Screen):
             ),
             Horizontal(
                 Vertical(
-                    Static("[bold cyan]INICIO RÁPIDO[/]", classes="section-title"),
+                    Static("[bold #22d3ee]INICIO RÁPIDO[/]", classes="section-title"),
                     Static(
-                        "[cyan]0.[/] Elige tu tecnología\n"
+                        "[#22d3ee]0.[/] Elige tu tecnología\n"
                         "   [dim]Docker, Kubernetes, Podman, OpenShift o Swarm; luego filtra por servidor.[/]\n\n"
-                        "[cyan]1.[/] Selecciona un contenedor\n"
+                        "[#22d3ee]1.[/] Selecciona un contenedor\n"
                         "   [dim]Usa ↑/↓ para navegar y Enter para seleccionar.[/]\n\n"
-                        "[cyan]2.[/] Explora la información\n"
+                        "[#22d3ee]2.[/] Explora la información\n"
                         "   [dim]Detalles, stats y logs se cargan automáticamente.[/]\n\n"
-                        "[cyan]3.[/] Depura y exporta\n"
+                        "[#22d3ee]3.[/] Depura y exporta\n"
                         "   [dim]Revisa logs en vivo y expórtalos cuando lo necesites.[/]",
                         classes="splash-quickstart",
                     ),
                     Static(
-                        "[dim cyan]      ┌─────────┐      ┌────────────┐      ┌────────────┐[/]\n"
-                        "[dim cyan]      │  STATS  │  ->  │  DETALLES  │  ->  │    LOGS    │[/]\n"
-                        "[dim cyan]      └─────────┘      └────────────┘      └────────────┘[/]",
+                        "[dim #22d3ee]      ┌─────────┐      ┌────────────┐      ┌────────────┐[/]\n"
+                        "[dim #22d3ee]      │  STATS  │  ->  │  DETALLES  │  ->  │    LOGS    │[/]\n"
+                        "[dim #22d3ee]      └─────────┘      └────────────┘      └────────────┘[/]",
                         id="splash-flow-diagram",
                     ),
                     id="splash-quickstart-section",
                 ),
                 Vertical(
-                    Static("[bold yellow]ATAJOS DE TECLADO[/]", classes="section-title"),
+                    Static("[bold #fbbf24]ATAJOS DE TECLADO[/]", classes="section-title"),
                     Static(
-                        "[bold yellow]↑ / ↓[/]   Navegar contenedores\n"
-                        "[bold yellow]Enter[/]   Seleccionar contenedor\n"
-                        "[bold yellow]r[/]       Refrescar información\n"
-                        "[bold yellow]e[/]       Exportar logs\n"
-                        "[bold yellow]p[/]       Pausar / Reanudar logs\n"
-                        "[bold yellow]n[/]       Siguiente panel\n"
-                        "[bold yellow]← / →[/]   Cambiar panel\n"
-                        "[bold yellow]b[/]       Volver a tecnologías\n"
-                        "[bold yellow]a/t/R[/]   Start / Stop / Restart\n"
-                        "[bold yellow]Del[/]     Eliminar contenedor\n"
-                        "[bold yellow]q[/]       Salir de Termainer\n"
-                        "[bold yellow]?[/]       Mostrar ayuda",
+                        "[bold #fbbf24]↑ / ↓[/]   Navegar contenedores\n"
+                        "[bold #fbbf24]Enter[/]   Seleccionar contenedor\n"
+                        "[bold #fbbf24]F5[/]      Refrescar información\n"
+                        "[bold #fbbf24]e[/]       Exportar logs\n"
+                        "[bold #fbbf24]p[/]       Pausar / Reanudar logs\n"
+                        "[bold #fbbf24]n[/]       Siguiente panel\n"
+                        "[bold #fbbf24]← / →[/]   Cambiar panel\n"
+                        "[bold #fbbf24]b[/]       Volver a tecnologías\n"
+                        "[bold #fbbf24]a/t/R[/]   Start / Stop / Restart\n"
+                        "[bold #fbbf24]Del[/]     Eliminar contenedor\n"
+                        "[bold #fbbf24]q[/]       Salir de Termainer\n"
+                        "[bold #fbbf24]?[/]       Mostrar ayuda",
                         classes="splash-shortcuts",
                     ),
                     id="splash-shortcuts-section",
                 ),
                 id="splash-bottom-row",
             ),
-            Static("[bold cyan]Presiona [white]Enter[/] para continuar[/]", id="splash-enter-hint"),
+            Static("[bold #22d3ee]Presiona [white]Enter[/] para continuar[/]", id="splash-enter-hint"),
             Center(
                 Static(
-                    f"[green]▻[/] [bold green]TERMAINER[/] [cyan]v{VERSION}[/]    [dim]|[/]    [dim]Desarrollado con[/] [red]♥[/] [dim]usando Python, Textual y Rich[/]    [dim]|[/]    [dim]Hecho por[/] [green]Alan Stefanov[/]",
+                    f"[dim]desarrollada por[/] [bold #4ade80]Alan Stefanov[/] [dim]|[/] [#5c5c5c]v{VERSION}[/]",
                     classes="splash-footer",
                 )
             ),

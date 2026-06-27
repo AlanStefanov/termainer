@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "termainer"
-version = "0.1.0"
+version = "0.3.0"
 description = "Container observability and operations directly from your terminal"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -29,8 +29,24 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "python-semantic-release>=9.0",
+]
+
 [project.scripts]
 termainer = "termainer.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.semantic_release]
+version_toml = "pyproject.toml:project.version"
+version_variables = ["src/termainer/version.py:VERSION"]
+branch = "main"
+commit_message = "chore(release): {version}"
+patch_without_tag = false
+major_on_zero = false
+
+[tool.semantic_release.changelog]
+exclude_commit_patterns = ["chore\\(", "docs\\(", "style\\("]

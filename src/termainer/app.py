@@ -17,7 +17,7 @@ from .providers.podman import PodmanProvider
 from .providers.swarm import SwarmProvider
 from .remote.ssh import SSHConnection
 from .server_manager import ServerConnection, ServerManager, provider_class_for
-from .ui.splash import SplashScreen
+from .ui.home import HomeScreen
 from .version import VERSION
 
 
@@ -31,7 +31,7 @@ class TermainerApp(App):
         self.server_manager = server_manager
 
     def on_mount(self) -> None:
-        self.push_screen(SplashScreen(self.server_manager))
+        self.push_screen(HomeScreen(self.server_manager))
 
 
 async def detect_provider(ssh: Optional[SSHConnection] = None) -> Provider:

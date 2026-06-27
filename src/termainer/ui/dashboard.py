@@ -2,16 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import os
+import socket
 from pathlib import Path
 from typing import Optional
 
 from rich.markup import escape
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Horizontal, Vertical
 from textual.events import Resize
 from textual.screen import ModalScreen, Screen
-from textual.widgets import Button, Input, Label, ListView, Static, Select
+from textual.widgets import Button, Footer, Input, Label, ListView, Static, Select
 
 from ..config import build_ssh_from_ssh_server, get_configured_ssh_servers
 from ..providers.base import ContainerSummary, Provider
@@ -30,21 +31,22 @@ class Dashboard(Screen):
     CSS_PATH = "styles.tcss"
 
     BINDINGS = [
-        ("up", "focus_up", "↑"),
-        ("down", "focus_down", "↓"),
-        ("enter", "select_container", "Select"),
-        Binding("r", "refresh_list", "Refresh", priority=True),
-        Binding("p", "toggle_pause", "Pause Logs", priority=True),
-        Binding("e", "export_logs", "Export", priority=True),
-        Binding("x", "export_logs", "Export", priority=True),
-        Binding("a", "start_container", "Start", priority=True),
-        Binding("t", "stop_container", "Stop", priority=True),
-        Binding("R", "restart_container", "Restart", priority=True),
-        Binding("delete", "confirm_remove", "Remove", priority=True),
-        Binding("b", "back_to_environment", "Back", priority=True),
-        Binding("escape", "back_to_environment", "Back", priority=True),
-        Binding("?", "show_help", "Help", priority=True),
-        Binding("q", "quit", "Quit", priority=True),
+        Binding("up", "focus_up", "Up", show=True),
+        Binding("down", "focus_down", "Down", show=True),
+        Binding("enter", "select_container", "Select", show=True),
+        Binding("f5", "refresh_list", "Refresh", show=True, priority=True),
+        Binding("p", "toggle_pause", "Pause Logs", show=True, priority=True),
+        Binding("e", "export_logs", "Export", show=True, priority=True),
+        Binding("x", "export_logs", "Export", show=True, priority=True),
+        Binding("a", "start_container", "Start", show=True, priority=True),
+        Binding("t", "stop_container", "Stop", show=True, priority=True),
+        Binding("R", "restart_container", "Restart", show=True, priority=True),
+        Binding("delete", "confirm_remove", "Remove", show=True, priority=True),
+        Binding("P", "restart_policy", "Política", show=True, priority=True),
+        Binding("c", "exec_cmd", "Exec", show=True, priority=True),
+        Binding("b", "back_to_environment", "Back", show=True, priority=True),
+        Binding("escape", "back_to_environment", "Back", show=True, priority=True),
+        Binding("q", "quit", "Quit", show=True, priority=True),
     ]
 
     def __init__(
@@ -66,6 +68,7 @@ class Dashboard(Screen):
         self._ultra_compact_mode = False
         self._active_ssh_conn: Optional[SSHConnection] = None  # current SSH connection
         self._saved_docker_host: Optional[str] = None
+        self._refresh_request_id = 0
 
     @property
     def _active_provider(self) -> Optional[Provider]:
@@ -97,15 +100,14 @@ class Dashboard(Screen):
         
         if server_selector is not None:
             sidebar_children.append(server_selector)
+
+        server_info = self._build_server_info_label()
+        if server_info is not None:
+            sidebar_children.append(server_info)
         
         sidebar_children.extend([
             Input(placeholder=f"Buscar {resource_label.lower()}...", id="search-input"),
             ListView(id="container-list"),
-            Static(
-                "[bold cyan]↑/↓[/] Navegar     [bold cyan]Enter[/] Seleccionar\n"
-                "[bold cyan]r[/] Refrescar     [bold cyan]b[/] Atrás     [bold cyan]q[/] Salir",
-                id="sidebar-help",
-            ),
         ])
 
         yield Vertical(
@@ -119,21 +121,21 @@ class Dashboard(Screen):
                 ),
                 id="dashboard-body",
             ),
-            self._footer(),
             id="dashboard-root",
         )
+        yield Footer()
 
     def _top_bar(self) -> Vertical:
         provider_name = self._active_provider.name.capitalize() if self._active_provider else "Provider"
         mode_suffix = " [dim](ultra)[/]" if self._ultra_compact_mode else (" [dim](compact)[/]" if self._compact_mode else "")
         connection_status = (
-            f"[bold green]● {provider_name}: connected[/]{mode_suffix}"
+            f"[bold #22d3ee]● {provider_name}: connected[/]{mode_suffix}"
             if self._active_provider
-            else "[bold yellow]● Sin conexión[/]"
+            else "[bold #fbbf24]● Sin conexión[/]"
         )
 
         brand_row = Horizontal(
-            Static("[bold green][ ][/] [bold green]TERMAINER[/] [cyan]v0.1.0[/]", id="top-brand"),
+            Static(f"[bold #22d3ee][ ][/] [bold #22d3ee]TERMAINER[/] [#5c5c5c]v{VERSION}[/]", id="top-brand"),
             Static("Todo lo que necesitas saber de TODOS tus contenedores en una sola terminal", id="top-tagline"),
             Static(connection_status, id="top-status"),
             id="top-bar-row",
@@ -170,6 +172,34 @@ class Dashboard(Screen):
         if event.control.id != "server-selector" or event.value is Select.BLANK:
             return
         self.run_worker(self._switch_server(str(event.value)))
+
+    def _build_server_info_label(self) -> Optional[Static]:
+        """Build a green label showing server hostname and IP/DNS."""
+        server = self._active_server or ""
+        if not server:
+            return None
+
+        # Check if it's an SSH server
+        if self._active_ssh_conn:
+            host = self._active_ssh_conn.host
+            return Static(f"[bold #4ade80]Servidor:[/] [#4ade80]{escape(server)}[/] [dim]- {escape(host)}[/]", id="server-info")
+
+        # Local server — get hostname and IP
+        hostname = socket.gethostname()
+        ip = self._get_local_ip()
+        return Static(f"[bold #4ade80]Servidor:[/] [#4ade80]{escape(hostname)}[/] [dim]- {escape(ip)}[/]", id="server-info")
+
+    @staticmethod
+    def _get_local_ip() -> str:
+        """Get the local IP address that can reach the network."""
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception:
+            return "127.0.0.1"
 
     async def _switch_server(self, value: str) -> None:
         """Switch active server. For SSH servers, open an SSH tunnel to forward
@@ -219,6 +249,17 @@ class Dashboard(Screen):
             self._active_server = alias
 
         await self._refresh_containers()
+        self._update_server_info()
+
+    def _update_server_info(self) -> None:
+        """Update the server info label after switching servers."""
+        try:
+            info_label = self.query_one("#server-info", Static)
+            new_label = self._build_server_info_label()
+            if new_label:
+                info_label.update(new_label.renderable)
+        except Exception:
+            pass
 
     def _top_panels(self) -> Horizontal:
         resource_singular = "pod" if self._is_kubernetes else "contenedor"
@@ -241,37 +282,13 @@ class Dashboard(Screen):
         return Vertical(
             Horizontal(
                 Static("[bold white]› LOGS[/] [dim](Selecciona un contenedor)[/]", id="logs-title"),
-                Static("[bold green]● LIVE[/]", id="logs-live"),
+                Static("[bold #4ade80]● LIVE[/]", id="logs-live"),
                 id="logs-header-row",
             ),
             LogWidget(id="log-content"),
             id="logs-panel",
         )
 
-    def _footer(self) -> Horizontal:
-        delete_label = "Delete" if self._is_kubernetes else "Remove"
-        controls = [
-            Static("[reverse] p [/reverse] [bold white]Pausar Logs[/]", classes="footer-key"),
-            Static("[reverse] e [/reverse] [bold white]Exportar Logs[/]", classes="footer-key"),
-            Static("[reverse] d [/reverse] [bold white]Detalles[/]", classes="footer-key footer-extended"),
-            Static("[reverse] s [/reverse] [bold white]Stats[/]", classes="footer-key footer-extended"),
-            Static("[reverse] n [/reverse] [bold white]Siguiente Panel[/]", classes="footer-key footer-extended"),
-            Static("[reverse] ←/→ [/reverse] [bold white]Cambiar Panel[/]", classes="footer-key footer-extended"),
-        ]
-        if not self._is_kubernetes:
-            controls.extend([
-                Static("[reverse] a [/reverse] [bold white]Start[/]", classes="footer-key"),
-                Static("[reverse] t [/reverse] [bold white]Stop[/]", classes="footer-key"),
-                Static("[reverse] R [/reverse] [bold white]Restart[/]", classes="footer-key"),
-            ])
-        controls.extend([
-            Static(f"[red reverse] Del [/reverse] [bold red]{delete_label}[/]", classes="footer-key danger-key"),
-            Static("[reverse] r [/reverse] [bold white]Refrescar[/]", classes="footer-key"),
-            Static("[reverse] b [/reverse] [bold white]Atrás[/]", classes="footer-key"),
-            Static("[reverse] q [/reverse] [bold white]Salir[/]", classes="footer-key"),
-            Static(VERSION, id="footer-version"),
-        ])
-        return Horizontal(*controls, id="bottom-bar")
 
     def on_mount(self) -> None:
         self._apply_responsive_mode(self.size.width, self.size.height)
@@ -301,13 +318,14 @@ class Dashboard(Screen):
         provider_name = self._active_provider.name.capitalize() if self._active_provider else "Provider"
         mode_suffix = " [dim](ultra)[/]" if ultra_compact else (" [dim](compact)[/]" if compact else "")
         if self._active_provider:
-            status.update(f"[bold green]● {provider_name}: connected[/]{mode_suffix}")
+            status.update(f"[bold #22d3ee]● {provider_name}: connected[/]{mode_suffix}")
         else:
-            status.update(f"[bold yellow]● Sin conexión[/]{mode_suffix}")
+            status.update(f"[bold #fbbf24]● Sin conexión[/]{mode_suffix}")
 
     async def _refresh_containers(self) -> None:
+        self._refresh_request_id += 1
+        request_id = self._refresh_request_id
         list_view = self.query_one("#container-list", ListView)
-        list_view.clear()
         try:
             if self._is_single_server:
                 provider = self._server_manager.get_provider(self._active_server)
@@ -316,6 +334,12 @@ class Dashboard(Screen):
                     c["_server"] = self._active_server
             else:
                 containers = await self._server_manager.list_all_containers()
+
+            # If another refresh started while this one was awaiting I/O, ignore stale results.
+            if request_id != self._refresh_request_id:
+                return
+
+            list_view.clear()
 
             for c in containers:
                 list_view.append(ContainerItem(c))
@@ -434,12 +458,32 @@ class Dashboard(Screen):
         self._stats_task = None
 
     def action_focus_up(self) -> None:
-        list_view = self.query_one("#container-list", ListView)
-        list_view.action_previous()
+        self._move_list_selection(-1)
 
     def action_focus_down(self) -> None:
+        self._move_list_selection(1)
+
+    def _move_list_selection(self, delta: int) -> None:
         list_view = self.query_one("#container-list", ListView)
-        list_view.action_next()
+        visible_items: list[tuple[int, ContainerItem]] = []
+        for idx, child in enumerate(list_view.children):
+            if isinstance(child, ContainerItem) and child.display:
+                visible_items.append((idx, child))
+
+        if not visible_items:
+            return
+
+        highlighted = list_view.highlighted_child
+        current_pos = 0
+        if isinstance(highlighted, ContainerItem):
+            for pos, (_, item) in enumerate(visible_items):
+                if item is highlighted:
+                    current_pos = pos
+                    break
+
+        new_pos = (current_pos + delta) % len(visible_items)
+        new_index, _ = visible_items[new_pos]
+        list_view.index = new_index
 
     def action_select_container(self) -> None:
         list_view = self.query_one("#container-list", ListView)
@@ -462,6 +506,8 @@ class Dashboard(Screen):
             self._selected_server = target_server
             self.notify(success_message, timeout=3)
             await self._refresh_containers()
+        except Exception as e:
+            self.notify(f"Error ejecutando {action}: {e}", severity="error", timeout=5)
         except Exception as e:
             self.notify(f"Error ejecutando {action}: {e}", severity="error", timeout=5)
 
@@ -504,9 +550,9 @@ class Dashboard(Screen):
         log_widget.toggle_pause()
         live = self.query_one("#logs-live", Static)
         if log_widget.paused:
-            live.update("[bold yellow]⏸ PAUSED[/]")
+            live.update("[bold #fbbf24]⏸ PAUSED[/]")
         else:
-            live.update("[bold green]● LIVE[/]")
+            live.update("[bold #4ade80]● LIVE[/]")
         status = "paused" if log_widget.paused else "resumed"
         self.notify(f"Logs {status}", timeout=2)
 
@@ -542,8 +588,47 @@ class Dashboard(Screen):
         self._close_active_tunnel()
         self.app.exit()
 
-    def action_show_help(self) -> None:
-        self.push_screen(HelpModal())
+    def action_restart_policy(self) -> None:
+        target_container, target_info, target_server = self._current_container_target()
+        if not target_container:
+            self.notify("Selecciona un contenedor primero", severity="warning", timeout=3)
+            return
+        self._selected_container = target_container
+        self._selected_info = target_info
+        self._selected_server = target_server
+        try:
+            provider = self._server_manager.get_provider(target_server)
+        except (KeyError, TypeError):
+            provider = self._active_provider
+        container_name = self._container_name(target_info, target_container)
+        current_policy = str(target_info.get("restartpolicy", target_info.get("restart", "")))
+        self.app.push_screen(
+            RestartPolicyModal(target_container, container_name, current_policy, provider.name),
+            self._apply_restart_policy,
+        )
+
+    async def _apply_restart_policy(self, policy: Optional[str]) -> None:
+        if not policy or not self._selected_container:
+            return
+        try:
+            provider = self._server_manager.get_provider(self._selected_server)
+            await provider.set_restart_policy(self._selected_container, policy)
+            self.notify(f"Política cambiada a '{policy}'", timeout=3)
+            await self._refresh_containers()
+        except Exception as e:
+            self.notify(f"Error: {e}", severity="error", timeout=8)
+
+    def action_exec_cmd(self) -> None:
+        target_container, target_info, target_server = self._current_container_target()
+        if not target_container:
+            self.notify("Selecciona un contenedor primero", severity="warning", timeout=3)
+            return
+        try:
+            provider = self._server_manager.get_provider(target_server)
+        except (KeyError, TypeError):
+            provider = self._active_provider
+        container_name = self._container_name(target_info, target_container)
+        self.app.push_screen(ExecModal(target_container, container_name, provider))
 
     def action_back_to_environment(self) -> None:
         self._cancel_tasks()
@@ -606,7 +691,7 @@ class RemoveContainerModal(ModalScreen[bool]):
 
     def compose(self) -> ComposeResult:
         yield Vertical(
-            Static(f"[bold red]Eliminar {escape(self.resource_name)}[/]", id="remove-title"),
+            Static(f"[bold #f87171]Eliminar {escape(self.resource_name)}[/]", id="remove-title"),
             Label(f"Vas a eliminar [bold white]{escape(self.container_name)}[/]"),
             Label(f"[dim]{escape(self.container_id)}[/]"),
             Static("Esta acción no se puede deshacer.", id="remove-warning"),
@@ -644,77 +729,113 @@ class RemoveContainerModal(ModalScreen[bool]):
         self.action_focus_next()
 
 
-class HelpModal(ModalScreen):
+class RestartPolicyModal(ModalScreen):
     BINDINGS = [
-        Binding("escape", "dismiss_help", "Close", priority=True),
-        Binding("q", "dismiss_help", "Close", priority=True),
-        Binding("?", "dismiss_help", "Close", priority=True),
-        Binding("enter", "dismiss_help", "Close", priority=True),
-        Binding("up", "scroll_up_help", "Up", priority=True),
-        Binding("down", "scroll_down_help", "Down", priority=True),
-        Binding("pageup", "scroll_page_up_help", "Page Up", priority=True),
-        Binding("pagedown", "scroll_page_down_help", "Page Down", priority=True),
-        Binding("home", "scroll_home_help", "Home", priority=True),
-        Binding("end", "scroll_end_help", "End", priority=True),
+        Binding("escape", "cancel", "Cancelar"),
     ]
 
+    _POLICIES: dict = {
+        "docker":     ["no", "always", "on-failure", "unless-stopped"],
+        "podman":     ["no", "always", "on-failure", "unless-stopped"],
+        "kubernetes": ["Always", "OnFailure", "Never"],
+        "openshift":  ["Always", "OnFailure", "Never"],
+        "swarm":      ["none", "on-failure", "any"],
+    }
+
+    def __init__(self, container_id: str, container_name: str, current_policy: str, provider_name: str) -> None:
+        super().__init__()
+        self._container_id = container_id
+        self._container_name = container_name
+        self._current_policy = current_policy
+        self._provider_name = provider_name
+        self._policies = self._POLICIES.get(provider_name, self._POLICIES["docker"])
+
     def compose(self) -> ComposeResult:
+        options = [(p, p) for p in self._policies]
+        current = self._current_policy if self._current_policy in self._policies else self._policies[0]
         yield Vertical(
-            Static("[bold yellow]Atajos de Teclado[/]", id="remove-title"),
-            VerticalScroll(
-                Static(
-                    "[bold]Entorno (Tecnologías)[/]\n"
-                    "  [reverse] ←/↑/↓/→ [/reverse] Navegar tecnologías\n"
-                    "  [reverse] Enter [/reverse] Abrir dashboard de tecnología\n\n"
-                    "[bold]Dashboard[/]\n"
-                    "  [reverse] ↑/↓ [/reverse] Navegar contenedores\n"
-                    "  [reverse] Enter [/reverse] Seleccionar contenedor\n"
-                    "  [reverse] b / Esc [/reverse] Volver a selección de tecnología\n"
-                    "  [reverse] r [/reverse] Refrescar lista\n"
-                    "  [reverse] p [/reverse] Pausar / Reanudar logs\n"
-                    "  [reverse] e / x [/reverse] Exportar logs\n"
-                    "  [reverse] a [/reverse] Iniciar contenedor\n"
-                    "  [reverse] t [/reverse] Detener contenedor\n"
-                    "  [reverse] R [/reverse] Reiniciar contenedor\n"
-                    "  [reverse] Del [/reverse] Eliminar contenedor\n"
-                    "  [reverse] q [/reverse] Salir\n\n"
-                    "[bold]Ayuda[/]\n"
-                    "  [reverse] ↑/↓ [/reverse] Scroll línea a línea\n"
-                    "  [reverse] PgUp / PgDn [/reverse] Scroll por página\n"
-                    "  [reverse] Home / End [/reverse] Ir al inicio/final\n"
-                    "  [reverse] Enter [/reverse] Cerrar ayuda y volver\n\n"
-                    "[dim]Presiona Enter, q, ? o Esc para cerrar.[/]",
-                    id="remove-warning",
-                ),
-                id="help-scroll",
+            Static("[bold #22d3ee]Política de Reinicio[/]", id="policy-title"),
+            Static(f"Contenedor: [bold white]{escape(self._container_name)}[/]"),
+            Static(f"Actual: [bold #fbbf24]{escape(self._current_policy or 'no definida')}[/]"),
+            Select(options, value=current, id="policy-select"),
+            Horizontal(
+                Button("Cancelar", id="cancel-policy"),
+                Button("Aplicar", variant="success", id="apply-policy"),
+                id="policy-actions",
             ),
-            Button("Cerrar", id="cancel-remove"),
-            id="remove-modal",
+            id="policy-modal",
         )
 
     def on_mount(self) -> None:
-        self.query_one("#help-scroll", VerticalScroll).focus()
+        self.query_one("#policy-select", Select).focus()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "apply-policy":
+            select = self.query_one("#policy-select", Select)
+            value = select.value
+            self.dismiss(str(value) if value is not Select.BLANK else None)
+        else:
+            self.dismiss(None)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
+class ExecModal(ModalScreen):
+    BINDINGS = [
+        Binding("escape", "close_exec", "Cerrar"),
+    ]
+
+    def __init__(self, container_id: str, container_name: str, provider) -> None:
+        super().__init__()
+        self._container_id = container_id
+        self._container_name = container_name
+        self._provider = provider
+
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Static(
+                f"[bold #22d3ee]Exec:[/] [bold white]{escape(self._container_name)}[/]",
+                id="exec-title",
+            ),
+            Horizontal(
+                Input(placeholder="ej: ls -la /app   |   cat /etc/hosts   |   env", id="exec-input"),
+                Button("Ejecutar", id="run-exec", variant="success"),
+                id="exec-input-row",
+            ),
+            LogWidget(id="exec-output"),
+            Button("Cerrar", id="close-exec-btn"),
+            id="exec-modal",
+        )
+
+    def on_mount(self) -> None:
+        self.query_one("#exec-input", Input).focus()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "exec-input":
+            self._launch(event.value.strip())
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "run-exec":
+            self._launch(self.query_one("#exec-input", Input).value.strip())
+        elif event.button.id == "close-exec-btn":
+            self.dismiss()
+
+    def _launch(self, command: str) -> None:
+        if not command:
+            return
+        self.run_worker(self._run_command(command))
+
+    async def _run_command(self, command: str) -> None:
+        output = self.query_one("#exec-output", LogWidget)
+        output.clear()
+        output.append_line(f"[dim]$ {escape(command)}[/]")
+        try:
+            async for line in self._provider.exec_command(self._container_id, command):
+                output.append_line(escape(line) if line else "")
+            output.append_line("[dim #5c5c5c]--- fin ---[/]")
+        except Exception as e:
+            output.append_line(f"[bold #f87171]Error: {escape(str(e))}[/]")
+
+    def action_close_exec(self) -> None:
         self.dismiss()
-
-    def action_dismiss_help(self) -> None:
-        self.dismiss()
-
-    def action_scroll_up_help(self) -> None:
-        self.query_one("#help-scroll", VerticalScroll).scroll_relative(y=-2)
-
-    def action_scroll_down_help(self) -> None:
-        self.query_one("#help-scroll", VerticalScroll).scroll_relative(y=2)
-
-    def action_scroll_page_up_help(self) -> None:
-        self.query_one("#help-scroll", VerticalScroll).scroll_relative(y=-12)
-
-    def action_scroll_page_down_help(self) -> None:
-        self.query_one("#help-scroll", VerticalScroll).scroll_relative(y=12)
-
-    def action_scroll_home_help(self) -> None:
-        self.query_one("#help-scroll", VerticalScroll).scroll_relative(y=-10000)
-
-    def action_scroll_end_help(self) -> None:
-        self.query_one("#help-scroll", VerticalScroll).scroll_relative(y=10000)

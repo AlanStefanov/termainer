@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shlex
 import shutil
 from datetime import datetime, timezone
 from typing import AsyncIterator, Dict, List, Optional, Tuple
@@ -152,6 +153,35 @@ class KubernetesProvider:
     async def remove(self, container_id: str, force: bool = False) -> None:
         namespace, name = self._parse_id(container_id)
         await self._run("delete", "pod", name, "-n", namespace)
+
+    async def set_restart_policy(self, container_id: str, policy: str) -> None:
+        raise RuntimeError(
+            "En Kubernetes la política de reinicio (restartPolicy) está definida en el "
+            "manifiesto del Deployment/StatefulSet y no puede cambiarse en un pod en ejecución. "
+            "Usa 'kubectl edit deployment <nombre>' para modificarla y forzar un rollout."
+        )
+
+    async def exec_command(self, container_id: str, command: str) -> AsyncIterator[str]:
+        namespace, name = self._parse_id(container_id)
+        try:
+            parts = shlex.split(command)
+        except ValueError:
+            parts = command.split()
+        cmd = ["exec", name, "-n", namespace, "--"] + parts
+        if self._ssh:
+            stream = await self._ssh.stream(["kubectl"] + cmd)
+        else:
+            proc = await asyncio.create_subprocess_exec(
+                self._kubectl_path, *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            stream = proc.stdout
+        while True:
+            line = await stream.readline()
+            if not line:
+                break
+            yield line.decode("utf-8", errors="replace").rstrip("\n")
 
     async def close(self) -> None:
         pass

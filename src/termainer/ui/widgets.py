@@ -19,14 +19,14 @@ DEFAULT_CHART_WIDTH = 62
 def _status_color(status: str) -> str:
     normalized = status.lower()
     if "restart" in normalized:
-        return "yellow"
+        return "#fbbf24"
     if "exited" in normalized or "dead" in normalized or "error" in normalized:
-        return "red"
+        return "#f87171"
     if "created" in normalized or "stopped" in normalized or "paused" in normalized:
-        return "bright_black"
+        return "#6b5b8a"
     if "up" in normalized or "running" in normalized:
-        return "green"
-    return "bright_black"
+        return "#4ade80"
+    return "#6b5b8a"
 
 
 class ContainerItem(ListItem):
@@ -46,21 +46,24 @@ class ContainerItem(ListItem):
         status = self.container.get("status", "")
         namespace = self.container.get("namespace", "")
         ready = self.container.get("ready", "")
-        server = self.container.get("_server", "")
         status_text = str(status)
         status_color = _status_color(status_text)
 
         dot = f"[{status_color}]●[/]"
         meta = f"{namespace} · {ready}" if namespace else ""
-        server_prefix = f"[dim cyan]{escape(server)}[/] " if server else ""
-        yield Label(f"{dot}  {server_prefix}[bold white]{escape(str(name))}[/]")
+        yield Label(f"{dot}  [bold white]{escape(str(name))}[/]")
         if meta:
-            yield Label(f"    [dim]{escape(meta)}[/]   [{status_color}]{escape(status_text)}[/]")
+            yield Label(f"    [dim]{escape(meta)}[/]")
         else:
-            yield Label(f"    [{status_color}]{escape(status_text)}[/]")
+            yield Label("")
 
 
 class DetailsWidget(Static):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.can_focus = True
+        self.can_focus_children = False
+
     def show_details(self, container: ContainerSummary, env: Dict[str, str]) -> None:
         name = (
             container.get("names")
@@ -83,31 +86,26 @@ class DetailsWidget(Static):
         status_color = _status_color(str(status))
 
         lines = [
-            f"[dim]◉[/]  [bold green]{escape(str(name))}[/]  [dim]{escape(str(cid)[:12])}[/]",
-            "",
+            f"[dim]◉[/]  [bold #4ade80]{escape(str(name))}[/]  [dim]{escape(str(cid)[:12])}[/]",
             f"  [bold white]Imagen:[/]     [white]{escape(str(image))}[/]",
             f"  [bold white]Estado:[/]     [{status_color}]{escape(str(status))}[/]",
             f"  [bold white]ID:[/]         [white]{escape(str(cid))}[/]",
             f"  [bold white]Creado:[/]     [white]{escape(str(created))}[/]",
-            f"  [bold white]Puerto(s):[/]  [cyan]{escape(str(ports))}[/]",
-            f"  [bold white]Red(es):[/]    [cyan]{escape(str(networks))}[/]",
+            f"  [bold white]Puerto(s):[/]  [#22d3ee]{escape(str(ports))}[/]",
+            f"  [bold white]Red(es):[/]    [#22d3ee]{escape(str(networks))}[/]",
             f"  [bold white]Restart:[/]    [white]{escape(str(restart))}[/]",
-            f"  [bold white]Namespace:[/]  [cyan]{escape(str(namespace))}[/]" if namespace else "",
+            f"  [bold white]Namespace:[/]  [#22d3ee]{escape(str(namespace))}[/]" if namespace else "",
             f"  [bold white]Ready:[/]      [white]{escape(str(ready))}[/]" if ready else "",
             f"  [bold white]Node:[/]       [white]{escape(str(node))}[/]" if node else "",
-            "",
-            "[dim]────────────────────────────────────────────────────────────────────────────[/]",
             "",
         ]
 
         env_count = len(env)
-        lines.append(f"  [bold cyan]ENVIRONMENT VARIABLES[/] [dim]({env_count})[/]")
+        lines.append(f"  [bold #22d3ee]ENVIRONMENT VARIABLES[/] [dim]({env_count})[/]")
         if env:
-            for k, v in list(env.items())[:10]:
+            for k, v in env.items():
                 display_val = "********" if "SECRET" in k.upper() or "PASSWORD" in k.upper() else v
-                lines.append(f"  [green]{escape(str(k))}[/]=[white]{escape(str(display_val))}[/]")
-            if env_count > 10:
-                lines.append(f"  [dim]... and {env_count - 10} more[/]")
+                lines.append(f"  [#4ade80]{escape(str(k))}[/]=[white]{escape(str(display_val))}[/]")
         else:
             lines.append("  [dim](no environment variables)[/]")
 
@@ -332,5 +330,5 @@ class LogWidget(RichLog):
         }
         for word, color in replacements.items():
             text = re.sub(rf"\b{word}\b", rf"[{color}]{word}[/]", text)
-        text = re.sub(r"\[(API|DB|Redis|HTTP|CRON)\]", r"[cyan][\1][/]", text)
+        text = re.sub(r"\[(API|DB|Redis|HTTP|CRON)\]", r"[#22d3ee][\1][/]", text)
         return text

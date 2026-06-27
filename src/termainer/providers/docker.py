@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import shlex
 import shutil
 from typing import AsyncIterator, Dict, List, Optional
 
@@ -164,6 +165,30 @@ class DockerProvider:
             args.append("-f")
         args.append(container_id)
         await self._run(*args)
+
+    async def set_restart_policy(self, container_id: str, policy: str) -> None:
+        await self._run("update", "--restart", policy, container_id)
+
+    async def exec_command(self, container_id: str, command: str) -> AsyncIterator[str]:
+        try:
+            parts = shlex.split(command)
+        except ValueError:
+            parts = command.split()
+        cmd = ["exec", container_id] + parts
+        if self._ssh:
+            stream = await self._ssh.stream(["docker"] + cmd)
+        else:
+            proc = await asyncio.create_subprocess_exec(
+                self._docker_path, *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            stream = proc.stdout
+        while True:
+            line = await stream.readline()
+            if not line:
+                break
+            yield line.decode("utf-8", errors="replace").rstrip("\n")
 
     async def close(self) -> None:
         pass
