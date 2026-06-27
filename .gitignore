@@ -28,6 +28,7 @@ docs/
 
 # Local runtime / secrets
 config.yaml
+publish.sh
 *.pem
 *.key
 *.p12
