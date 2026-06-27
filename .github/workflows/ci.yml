@@ -51,6 +51,11 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - run: pip install python-semantic-release==9.9.0
-      - env:
+      - name: Semantic release version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: semantic-release --verbose version
+      - name: Semantic release publish
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: semantic-release --verbose publish
