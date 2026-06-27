@@ -1,6 +1,5 @@
 name: CI
 
-# Runs on every push and PR — never on tags (publish.yml handles those)
 on:
   push:
     branches: ["**"]
@@ -35,3 +34,22 @@ jobs:
       - run: pip install pytest pytest-asyncio
       - run: pip install -e .
       - run: pytest tests/ -v
+
+  release:
+    name: Release
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install python-semantic-release
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: semantic-release publish

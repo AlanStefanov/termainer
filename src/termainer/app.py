@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import sys
+from importlib.resources import files
 from pathlib import Path
 from typing import List, Optional, Type
 
@@ -115,7 +116,7 @@ def run_doctor() -> int:
 
 class TermainerApp(App):
     TITLE = "Termainer"
-    CSS_PATH = "ui/styles.tcss"
+    CSS_PATH = files("termainer.ui").joinpath("styles.tcss")
 
     def __init__(self, server_manager: ServerManager) -> None:
         super().__init__()
