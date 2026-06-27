@@ -45,8 +45,10 @@ version_toml = ["pyproject.toml:project.version"]
 version_variables = ["src/termainer/version.py:VERSION"]
 branch = "main"
 commit_message = "chore(release): {version}"
-patch_without_tag = false
 major_on_zero = false
+upload_to_pypi = false
+upload_to_release = false
+build_command = ""
 
 [tool.semantic_release.changelog]
 exclude_commit_patterns = ["chore\\(", "docs\\(", "style\\("]

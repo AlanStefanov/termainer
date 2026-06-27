@@ -30,7 +30,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install semantic-release
-        run: pip install "python-semantic-release>=9.0"
+        run: pip install "python-semantic-release>=9.0,<10"
 
       - name: Configure git identity
         run: |
