@@ -26,6 +26,10 @@ Building scalable platforms, leading teams, and optimizing cloud operations.
 
 **Container observability and operations directly from your terminal.**
 
+<p align="center">
+  <img src="src/termainer/ui/logo.png" alt="Termainer Logo" width="600"/>
+</p>
+
 [![GitHub](https://img.shields.io/badge/GitHub-AlanStefanov/termainer-181717?style=flat-square&logo=github)](https://github.com/AlanStefanov/termainer)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
@@ -297,18 +301,19 @@ The sidebar dropdown automatically populates with:
 #### Container dashboard
 
 | Key | Action |
-|---|---|
+|---|---|---|
 | `↑` / `↓` | Navigate container list |
 | `Enter` | Select container |
-| `b` / `Escape` | Back to technology selection |
-| `r` | Refresh container list |
+| `F5` | Refresh list |
 | `p` | Pause/resume logs |
-| `e` / `x` | Export logs to file |
+| `e` | Export logs |
 | `a` | Start container |
 | `t` | Stop container |
-| `R` | Restart container |
+| `r` | Restart container |
+| `o` | Restart policy |
+| `c` | Exec command |
 | `Delete` | Remove container |
-| `?` | Show help |
+| `Escape` | Back to technology selection |
 | `q` | Quit |
 
 ---
@@ -316,6 +321,7 @@ The sidebar dropdown automatically populates with:
 ## Supported Providers
 
 | Provider | List | Inspect | Stats | Logs | Env Vars | Start/Stop/Restart | Remove |
+|---|---|---|---|---|---|---|---|---|
 |---|---|---|---|---|---|---|---|
 | **Docker** | ✅ | ✅ | ✅ (stream) | ✅ (follow) | ✅ | ✅ | ✅ |
 | **Docker Swarm** | ✅ (services) | ✅ | ⚠️ basic | ✅ (service logs) | ✅ | ✅ (scale/update) | ✅ |

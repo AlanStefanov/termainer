@@ -31,48 +31,37 @@ def multi_server_mgr() -> ServerManager:
     ])
 
 
-# ── SplashScreen._dismiss ─────────────────────────────────────
+# ── BootScreen / SplashScreen ─────────────────────────────────
 
-def test_splash_dismiss_single_server_goes_to_environment(mock_app, single_server_mgr) -> None:
-    """Even with a single server, splash should go to EnvironmentScreen (not Dashboard)."""
+def test_splash_skip_goes_to_home(mock_app, single_server_mgr) -> None:
+    """SplashScreen.action_skip should call _go_home and switch to HomeScreen."""
     from unittest.mock import PropertyMock
     from termainer.ui.splash import SplashScreen
     screen = SplashScreen(single_server_mgr)
     with patch.object(type(screen), "app", new_callable=PropertyMock, return_value=mock_app):
-        screen._dismiss()
-    assert mock_app.switch_screen.called
-    assert not mock_app.push_screen.called
-
-
-def test_splash_dismiss_multi_server_goes_to_environment(mock_app, multi_server_mgr) -> None:
-    """With multiple servers, splash should go to EnvironmentScreen."""
-    from unittest.mock import PropertyMock
-    from termainer.ui.splash import SplashScreen
-    screen = SplashScreen(multi_server_mgr)
-    with patch.object(type(screen), "app", new_callable=PropertyMock, return_value=mock_app):
-        screen._dismiss()
+        screen.action_skip()
     assert mock_app.switch_screen.called
 
 
-def test_splash_dismiss_called_only_once(mock_app, single_server_mgr) -> None:
-    """_dismiss should set _dismissed flag and only execute once."""
+def test_splash_skip_called_only_once(mock_app, single_server_mgr) -> None:
+    """_go_home should set _done flag and only execute once."""
     from unittest.mock import PropertyMock
     from termainer.ui.splash import SplashScreen
     screen = SplashScreen(single_server_mgr)
     with patch.object(type(screen), "app", new_callable=PropertyMock, return_value=mock_app):
-        screen._dismiss()
-        assert screen._dismissed is True
-        screen._dismiss()  # second call should be no-op
+        screen._go_home()
+        assert screen._done is True
+        screen._go_home()  # second call should be no-op
     assert mock_app.switch_screen.call_count == 1
 
 
-def test_splash_dismiss_uses_switch_screen_not_push(mock_app, multi_server_mgr) -> None:
+def test_splash_uses_switch_screen_not_push(mock_app, multi_server_mgr) -> None:
     """Splash should use switch_screen (not push_screen) to remove itself from stack."""
     from unittest.mock import PropertyMock
     from termainer.ui.splash import SplashScreen
     screen = SplashScreen(multi_server_mgr)
     with patch.object(type(screen), "app", new_callable=PropertyMock, return_value=mock_app):
-        screen._dismiss()
+        screen.action_skip()
     assert mock_app.switch_screen.called
     assert not mock_app.push_screen.called
 

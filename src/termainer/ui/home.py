@@ -1,249 +1,255 @@
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.binding import Binding
 from textual.containers import Center, Horizontal, Vertical
-from textual.events import Click, Resize
+from textual.events import Resize
+from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widgets import Static
 
+from ..locale import _
 from ..server_manager import ServerManager
 from ..version import VERSION
 
 
-LOGO = """\
-[bold #22d3ee] _______ ______ _____  __  __          _____ _   _ ______ _____  [/]
-[bold #22d3ee]|__   __|  ____|  __ \\|  \\/  |   /\\   |_   _| \\ | |  ____|  __ \\ [/]
-[bold #22d3ee]   | |  | |__  | |__) | \\  / |  /  \\    | | |  \\| | |__  | |__) |[/]
-[bold #22d3ee]   | |  |  __| |  _  /| |\\/| | / /\\ \\   | | | . ` |  __| |  _  / [/]
-[bold #22d3ee]   | |  | |____| | \\ \\| |  | |/ ____ \\ _| |_| |\\  | |____| | \\ \\ [/]
-[bold #22d3ee]   |_|  |______|_|  \\_\\_|  |_/_/    \\_\\_____|_| \\_|______|_|  \\_\\ [/]"""
+# ── ASCII art ─────────────────────────────────────────────────────────────────
 
-LOGO_COMPACT = "[bold #22d3ee]TERMAINER[/]"
+LOGO_BLOCK = """\
+[bold #66FF33] _______ ______ _____  __  __          _____ _   _ ______ _____  [/]
+[bold #66FF33]|__   __|  ____|  __ \\|  \\/  |   /\\   |_   _| \\ | |  ____|  __ \\ [/]
+[bold #66FF33]   | |  | |__  | |__) | \\  / |  /  \\    | | |  \\| | |__  | |__) |[/]
+[bold #66FF33]   | |  |  __| |  _  /| |\\/| | / /\\ \\   | | | . ` |  __| |  _  / [/]
+[bold #66FF33]   | |  | |____| | \\ \\| |  | |/ ____ \\ _| |_| |\\  | |____| | \\ \\ [/]
+[bold #66FF33]   |_|  |______|_|  \\_\\_|  |_/_/    \\_\\_____|_| \\_|______|_|  \\_\\ [/]"""
 
-CONTAINER_ICON = """\
-[bold #22d3ee]        .─────────────.        [/]
-[bold #22d3ee]       /   ┌─┐ ┌─┐ ┌─┐ \\       [/]
-[bold #22d3ee]      /    │ │ │ │ │ │  \\      [/]
-[bold #22d3ee]     │     │ │ │ │ │ │   │     [/]
-[bold #22d3ee]      \\    └─┘ └─┘ └─┘  /      [/]
-[bold #22d3ee]       \\               /       [/]
-[bold #22d3ee]        '─────────────'        [/]
-[dim #22d3ee]        observability core[/]"""
+LOGO_COMPACT = "[bold #66FF33][ >_ ]  TERMAINER[/]"
 
+
+# ── Widgets ───────────────────────────────────────────────────────────────────
+
+class HeaderWidget(Horizontal):
+    """Fixed header: brand (left) · welcome (center) · live status (right)."""
+
+    _pulse: reactive[bool] = reactive(True)
+
+    def __init__(self, server_manager: ServerManager) -> None:
+        super().__init__(id="home-header")
+        self._server_manager = server_manager
+
+    def compose(self) -> ComposeResult:
+        yield Static(
+            f"[bold #66FF33][ >_ ][/]  [bold #66FF33]TERMAINER[/] [dim #66FF33]v{VERSION}[/]",
+            id="home-logo",
+        )
+        yield Static(f"─── {_('home.welcome')} ───", id="home-welcome")
+        yield Static("", id="home-status")
+
+    def on_mount(self) -> None:
+        self._render_status()
+        self.set_interval(0.9, self._toggle_pulse)
+
+    def _toggle_pulse(self) -> None:
+        self._pulse = not self._pulse
+
+    def watch__pulse(self, _: bool) -> None:
+        self._render_status()
+
+    def _render_status(self) -> None:
+        count = self._server_manager.server_count
+        dot = "[bold #66FF33]●[/]" if self._pulse else "[dim #2a2a2a]●[/]"
+        try:
+            self.query_one("#home-status", Static).update(
+                f"{dot} {_('home.header.status', connected=count, total=count)}"
+            )
+        except Exception:
+            pass
+
+
+class HeroWidget(Vertical):
+    """Full-width hero section: big logo + tagline."""
+
+    def compose(self) -> ComposeResult:
+        yield Static(LOGO_BLOCK, id="hero-logo")
+        yield Static(
+            f"[bold #00E5FF]{_('home.hero.tagline')}[/]",
+            id="hero-tagline",
+        )
+
+    def set_compact(self, compact: bool) -> None:
+        try:
+            self.query_one("#hero-logo", Static).update(
+                LOGO_COMPACT if compact else LOGO_BLOCK
+            )
+        except Exception:
+            pass
+
+
+class PlatformsStripWidget(Horizontal):
+    """Horizontal strip of 6 platform icons — no boxes, icon + name only."""
+
+    _PLATFORMS = [
+        ("🐳", "#3399FF", "home.platform.docker"),
+        ("⎈",  "#3399FF", "home.platform.k8s"),
+        ("⬡",  "#FFD400", "home.platform.swarm"),
+        ("◇",  "#B366FF", "home.platform.podman"),
+        ("◈",  "#FF3B30", "home.platform.openshift"),
+        ("▸_", "#66FF33", "home.platform.ssh"),
+    ]
+
+    def compose(self) -> ComposeResult:
+        for icon, color, key in self._PLATFORMS:
+            yield Static(
+                f"[bold {color}]{icon}[/]  [{color}]{_(key)}[/]",
+                classes="platform-item",
+            )
+
+
+class AboutWidget(Vertical):
+    """Compact description of what Termainer is."""
+
+    def compose(self) -> ComposeResult:
+        yield Static(f"[bold #00E5FF]{_('home.about.title')}[/]", classes="section-label")
+        yield Static(
+            _("home.about.description"),
+            id="about-description",
+        )
+
+
+class FeaturesWidget(Horizontal):
+    """Five-column feature breakdown with icons, titles and item lists."""
+
+    _COLS = [
+        ("#66FF33", "▥", "home.features.obs.title", "home.features.obs.items"),
+        ("#00E5FF", "⌕", "home.features.inspection.title", "home.features.inspection.items"),
+        ("#3399FF", "⚙", "home.features.ops.title", "home.features.ops.items"),
+        ("#B366FF", "⬡", "home.features.export.title", "home.features.export.items"),
+        ("#FFD400", "⇶", "home.features.unified.title", "home.features.unified.items"),
+    ]
+
+    def compose(self) -> ComposeResult:
+        for color, icon, title_key, items_key in self._COLS:
+            yield Vertical(
+                Static(f"[bold {color}]{icon}  {_(title_key)}[/]", classes="feat-title"),
+                Static(f"[dim]{_(items_key)}[/]", classes="feat-body"),
+                classes="feat-col",
+            )
+
+
+class SupportedPlatformsWidget(Horizontal):
+    """Six platform cards, each with its brand-color border."""
+
+    _CARDS = [
+        ("🐳", "#3399FF", "home.platform.docker",  "plat-docker"),
+        ("⎈",  "#3399FF", "home.platform.k8s",          "plat-k8s"),
+        ("⬡",  "#FFD400", "home.platform.swarm",        "plat-swarm"),
+        ("◇",  "#B366FF", "home.platform.podman",       "plat-podman"),
+        ("◈",  "#FF3B30", "home.platform.openshift",    "plat-openshift"),
+        ("▸_", "#66FF33", "home.platform.ssh",          "plat-ssh"),
+    ]
+
+    def compose(self) -> ComposeResult:
+        for icon, color, key, css_class in self._CARDS:
+            name = _(key)
+            parts = name.split(" ", 1)
+            display = f"{parts[0]}\n{parts[1]}" if len(parts) > 1 else name
+            yield Vertical(
+                Static(f"[bold {color}]{icon}[/]", classes="plat-icon"),
+                Static(display,                        classes="plat-name"),
+                Static(f"[bold #4ade80]{_('home.platforms.supported')}[/]", classes="plat-status"),
+                classes=f"plat-card {css_class}",
+            )
+
+
+class FooterWidget(Vertical):
+    """Centered footer: Enter hint + credits."""
+
+    def compose(self) -> ComposeResult:
+        hint = _("home.footer.enter_hint")
+        styled = hint.replace("ENTER", "[bold #66FF33]ENTER[/]")
+        yield Static(styled, id="footer-enter")
+        yield Static(
+            _("home.footer.credits"),
+            id="footer-credits",
+        )
+
+
+# ── Screen ────────────────────────────────────────────────────────────────────
 
 class HomeScreen(Screen):
+    """
+    Widget-based home/welcome screen.
+
+    Hierarchy:
+        HomeScreen
+        ├── HeaderWidget              brand · welcome · live pulsing status
+        ├── HeroWidget                big logo + tagline
+        ├── PlatformsStripWidget      6 platform icons, no boxes
+        ├── AboutWidget               description + ASCII connection diagram
+        ├── FeaturesWidget            5-column feature breakdown
+        ├── SupportedPlatformsWidget  6 colored-border platform cards
+        └── FooterWidget              Enter hint + credits (no shortcuts)
+    """
+
     BINDINGS = [
-        Binding("enter", "continue", "Continue", priority=True),
-        Binding("escape", "continue", "Continue", priority=True),
-        Binding("q", "quit", "Quit", priority=True),
+        ("enter",  "continue_to_env", _("home.bind.continue")),
+        ("escape", "continue_to_env", _("home.bind.continue")),
+        ("q",      "quit",            _("home.bind.quit")),
     ]
 
     def __init__(self, server_manager: ServerManager) -> None:
         super().__init__()
         self._server_manager = server_manager
         self._dismissed = False
+        self._hero: HeroWidget | None = None
 
     def compose(self) -> ComposeResult:
+        hero = HeroWidget(id="home-hero")
+        self._hero = hero
         yield Vertical(
-            self._header(),
-            Center(
-                Vertical(
-                    Static(LOGO, classes="home-logo", id="home-logo-text"),
-                    Static(f"[dim]v{VERSION}[/]", classes="home-version"),
-                    id="home-logo-block",
-                )
-            ),
+            HeaderWidget(self._server_manager),
+            hero,
+            PlatformsStripWidget(id="home-platforms"),
+            AboutWidget(id="home-about"),
+            FeaturesWidget(id="home-features"),
             Static(
-                "Un [bold]unico[/] centro de operaciones para cualquier plataforma de contenedores, "
-                "local o remota, sin abandonar la terminal.",
-                classes="home-tagline",
+                f"[bold #00E5FF]{_('home.platforms.title')}[/]",
+                id="home-supported-label",
             ),
-            self._tech_icons_row(),
-            Vertical(
-                self._about_section(),
-                self._features_section(),
-                id="home-content",
-            ),
-            self._platforms_row(),
-            Static(
-                "[bold #22d3ee]Presiona Enter para continuar[/]",
-                id="home-enter-hint",
-            ),
-            self._footer(),
+            SupportedPlatformsWidget(id="home-supported"),
             id="home-root",
         )
-
-    def _header(self) -> Horizontal:
-        return Horizontal(
-            Static(f"[dim]>[/] [bold]TERMAINER[/] [dim]v{VERSION}[/]", id="home-header-left"),
-            Static("B I E N V E N I D O  A", id="home-header-center"),
-            Static("[bold #4ade80]●[/]", id="home-header-right"),
-            id="home-header",
-        )
-
-    def _tech_icons_row(self) -> Horizontal:
-        icons = [
-            ("🐳", "#4ade80", "Docker"),
-            ("⎈", "#22d3ee", "Kubernetes"),
-            ("⬡", "#fbbf24", "Swarm"),
-            ("◇", "#22d3ee", "Podman"),
-            ("◈", "#f87171", "OpenShift"),
-            ("▸_", "#808080", "Remote (SSH)"),
-        ]
-        children = []
-        for emoji, color, label in icons:
-            children.append(Static(f"[{color}]{emoji}[/] [{color}]{label}[/]", classes="home-tech-icon"))
-        return Horizontal(*children, id="home-tech-icons")
-
-    def _about_section(self) -> Vertical:
-        return Vertical(
-            Static("[bold]QUE ES TERMAINER?[/]", classes="home-section-title"),
-            Horizontal(
-                Vertical(
-                    Static(
-                        "[bold #22d3ee]Termainer[/] es una plataforma de observabilidad y operaciones nativa "
-                        "de terminal que proporciona una interfaz unificada para ecosistemas de contenedores modernos.\n\n"
-                        "Conectate a entornos locales o remotos por SSH y gestiona [bold #4ade80]Docker[/], "
-                        "[bold #22d3ee]Kubernetes[/], [bold #fbbf24]Swarm[/], [bold #22d3ee]Podman[/] y "
-                        "[bold #f87171]OpenShift[/] desde un unico dashboard interactivo.",
-                        classes="home-about-text",
-                    ),
-                ),
-                Center(Static(CONTAINER_ICON, classes="home-icon"), id="home-icon-wrap"),
-                id="home-about-row",
-            ),
-            id="home-about",
-        )
-
-    def _features_section(self) -> Vertical:
-        return Vertical(
-            Static("[bold]CARACTERISTICAS PRINCIPALES[/]", classes="home-section-title"),
-            Horizontal(
-                Vertical(
-                    Static("[bold #4ade80]Observabilidad[/]", classes="home-feat-title"),
-                    Static(
-                        "  [dim]● Metricas en tiempo real[/]\n"
-                        "  [dim]● Logs en vivo[/]\n"
-                        "  [dim]● Estados de recursos[/]\n"
-                        "  [dim]● Eventos y alertas[/]",
-                        classes="home-feat-desc",
-                    ),
-                    classes="home-feat-card",
-                ),
-                Vertical(
-                    Static("[bold #22d3ee]Inspeccion[/]", classes="home-feat-title"),
-                    Static(
-                        "  [dim]● Contenedores / Pods[/]\n"
-                        "  [dim]● Imagenes[/]\n"
-                        "  [dim]● Volúmenes[/]\n"
-                        "  [dim]● Redes[/]\n"
-                        "  [dim]● Variables de entorno[/]",
-                        classes="home-feat-desc",
-                    ),
-                    classes="home-feat-card",
-                ),
-                Vertical(
-                    Static("[bold #fbbf24]Operaciones[/]", classes="home-feat-title"),
-                    Static(
-                        "  [dim]● Iniciar / Detener[/]\n"
-                        "  [dim]● Reiniciar[/]\n"
-                        "  [dim]● Ejecutar comandos[/]\n"
-                        "  [dim]● Acceso a shell[/]\n"
-                        "  [dim]● Port forward[/]",
-                        classes="home-feat-desc",
-                    ),
-                    classes="home-feat-card",
-                ),
-                Vertical(
-                    Static("[bold #f87171]Exportacion[/]", classes="home-feat-title"),
-                    Static(
-                        "  [dim]● Exportar logs[/]\n"
-                        "  [dim]● Reportes[/]\n"
-                        "  [dim]● Debug bundles[/]\n"
-                        "  [dim]● Estado del sistema[/]",
-                        classes="home-feat-desc",
-                    ),
-                    classes="home-feat-card",
-                ),
-                id="home-features-row",
-            ),
-            id="home-features",
-        )
-
-    def _platforms_row(self) -> Horizontal:
-        platforms = [
-            ("🐳", "#4ade80", "Docker Standalone"),
-            ("⬡", "#fbbf24", "Docker Swarm"),
-            ("⎈", "#22d3ee", "Kubernetes"),
-            ("◈", "#f87171", "OpenShift"),
-            ("◇", "#22d3ee", "Podman"),
-            ("▸_", "#808080", "Remote (SSH)"),
-        ]
-        cards = []
-        for emoji, color, label in platforms:
-            cards.append(
-                Vertical(
-                    Static(f"[{color}]{emoji}[/] [{color}]{label}[/]", classes="home-plat-icon"),
-                    Static("[dim]Soportado[/]", classes="home-plat-status"),
-                    classes="home-plat-card",
-                )
-            )
-        return Horizontal(*cards, id="home-platforms")
-
-    def _footer(self) -> Horizontal:
-        return Horizontal(
-            Static(
-                "[dim]Enter[/] Continuar  [dim]q[/] Salir",
-                id="home-footer-left",
-            ),
-            Static(
-                "[dim]Enter[/] Continuar",
-                id="home-footer-compact",
-            ),
-            Static(
-                f"[dim]desarrollada por[/] [bold #4ade80]Alan Stefanov[/] [dim]|[/] [dim]v{VERSION}[/]",
-                id="home-footer-right",
-            ),
-            id="home-footer",
-        )
-
-    # --- Lifecycle ---
+        yield FooterWidget(id="home-footer")
 
     def on_mount(self) -> None:
-        self._apply_responsive_mode(self.size.width, self.size.height)
+        self._apply_responsive(self.size.width, self.size.height)
 
     def on_resize(self, event: Resize) -> None:
-        self._apply_responsive_mode(event.size.width, event.size.height)
+        self._apply_responsive(event.size.width, event.size.height)
 
-    def _apply_responsive_mode(self, width: int, height: int) -> None:
-        compact = width < 120 or height < 38
-        ultra_compact = width < 95 or height < 28
-        root = self.query_one("#home-root", Vertical)
-        logo = self.query_one("#home-logo-text", Static)
+    def _apply_responsive(self, width: int, height: int) -> None:
+        compact = width < 100 or height < 34
+        try:
+            root = self.query_one("#home-root", Vertical)
+        except Exception:
+            return
         if compact:
             root.add_class("compact")
-            logo.update(LOGO_COMPACT)
+            if self._hero:
+                self._hero.set_compact(True)
         else:
             root.remove_class("compact")
-            logo.update(LOGO)
-        if ultra_compact:
-            root.add_class("ultra-compact")
-        else:
-            root.remove_class("ultra-compact")
-
-    # --- Events ---
+            if self._hero:
+                self._hero.set_compact(False)
 
     def on_key(self, event) -> None:
         if event.key in ("enter", "escape"):
             event.stop()
             self._dismiss()
 
-    def on_click(self, event: Click) -> None:
-        event.stop()
+    def on_click(self) -> None:
         self._dismiss()
 
-    def action_continue(self) -> None:
+    def action_continue_to_env(self) -> None:
         self._dismiss()
 
     def action_quit(self) -> None:

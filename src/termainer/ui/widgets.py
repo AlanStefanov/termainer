@@ -10,6 +10,7 @@ from textual.app import ComposeResult
 from textual.widgets import Label, ListItem, Static
 from textual.widgets._rich_log import RichLog
 
+from ..locale import _
 from ..providers.base import ContainerSummary
 
 
@@ -87,27 +88,27 @@ class DetailsWidget(Static):
 
         lines = [
             f"[dim]◉[/]  [bold #4ade80]{escape(str(name))}[/]  [dim]{escape(str(cid)[:12])}[/]",
-            f"  [bold white]Imagen:[/]     [white]{escape(str(image))}[/]",
-            f"  [bold white]Estado:[/]     [{status_color}]{escape(str(status))}[/]",
-            f"  [bold white]ID:[/]         [white]{escape(str(cid))}[/]",
-            f"  [bold white]Creado:[/]     [white]{escape(str(created))}[/]",
-            f"  [bold white]Puerto(s):[/]  [#22d3ee]{escape(str(ports))}[/]",
-            f"  [bold white]Red(es):[/]    [#22d3ee]{escape(str(networks))}[/]",
-            f"  [bold white]Restart:[/]    [white]{escape(str(restart))}[/]",
-            f"  [bold white]Namespace:[/]  [#22d3ee]{escape(str(namespace))}[/]" if namespace else "",
-            f"  [bold white]Ready:[/]      [white]{escape(str(ready))}[/]" if ready else "",
-            f"  [bold white]Node:[/]       [white]{escape(str(node))}[/]" if node else "",
+            f"  [bold white]{_('widgets.details.image')}[/]     [white]{escape(str(image))}[/]",
+            f"  [bold white]{_('widgets.details.status')}[/]     [{status_color}]{escape(str(status))}[/]",
+            f"  [bold white]{_('widgets.details.id')}[/]         [white]{escape(str(cid))}[/]",
+            f"  [bold white]{_('widgets.details.created')}[/]     [white]{escape(str(created))}[/]",
+            f"  [bold white]{_('widgets.details.ports')}[/]  [#22d3ee]{escape(str(ports))}[/]",
+            f"  [bold white]{_('widgets.details.networks')}[/]    [#22d3ee]{escape(str(networks))}[/]",
+            f"  [bold white]{_('widgets.details.restart')}[/]   [white]{escape(str(restart))}[/]",
+            f"  [bold white]{_('widgets.details.namespace')}[/]    [#22d3ee]{escape(str(namespace))}[/]" if namespace else "",
+            f"  [bold white]{_('widgets.details.ready')}[/]      [white]{escape(str(ready))}[/]" if ready else "",
+            f"  [bold white]{_('widgets.details.node')}[/]       [white]{escape(str(node))}[/]" if node else "",
             "",
         ]
 
         env_count = len(env)
-        lines.append(f"  [bold #22d3ee]ENVIRONMENT VARIABLES[/] [dim]({env_count})[/]")
+        lines.append(f"  [bold #22d3ee]{_('widgets.details.env_title', count=str(env_count))}[/]")
         if env:
             for k, v in env.items():
                 display_val = "********" if "SECRET" in k.upper() or "PASSWORD" in k.upper() else v
                 lines.append(f"  [#4ade80]{escape(str(k))}[/]=[white]{escape(str(display_val))}[/]")
         else:
-            lines.append("  [dim](no environment variables)[/]")
+            lines.append(_("widgets.details.env_empty"))
 
         self.update("\n".join(lines))
 
@@ -149,21 +150,21 @@ class StatsWidget(Static):
         pids_card_w = 12 if widget_width >= 70 else 10
         wide_card_w = 22 if widget_width >= 90 else 18
 
-        cpu_card = self._kpi_card("CPU", str(cpu_raw), "green", cpu_card_w)
-        mem_card = self._kpi_card("MEMORIA", str(mem_raw), "cyan", wide_card_w)
-        net_card = self._kpi_card("NET I/O", str(net_raw), "magenta", wide_card_w)
-        pids_card = self._kpi_card("PIDS", str(pids), "yellow", pids_card_w)
+        cpu_card = self._kpi_card(_("widgets.stats.cpu"), str(cpu_raw), "green", cpu_card_w)
+        mem_card = self._kpi_card(_("widgets.stats.memory"), str(mem_raw), "cyan", wide_card_w)
+        net_card = self._kpi_card(_("widgets.stats.net"), str(net_raw), "magenta", wide_card_w)
+        pids_card = self._kpi_card(_("widgets.stats.pids"), str(pids), "yellow", pids_card_w)
 
         lines = [
             *self._join_cards([cpu_card, mem_card, net_card, pids_card]),
             "",
-            "[bold white]CPU %[/] [dim](Últimos 60s)[/]",
+            f"[bold white]{_('widgets.stats.cpu_chart')}[/]",
             *cpu_chart,
             "",
-            "[bold white]Memoria[/] [dim](Últimos 60s)[/]",
+            f"[bold white]{_('widgets.stats.mem_chart')}[/]",
             *mem_chart,
             "",
-            "[bold white]Red I/O[/] [dim](Últimos 60s)[/]",
+            f"[bold white]{_('widgets.stats.net_chart')}[/]",
             *net_chart,
         ]
         self.update("\n".join(lines))
