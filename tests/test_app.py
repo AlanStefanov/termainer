@@ -4,7 +4,15 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from termainer.app import build_server_manager
+from termainer.app import build_server_manager, run_doctor
+
+
+def test_run_doctor_reports_version(capsys: pytest.CaptureFixture[str]) -> None:
+    assert run_doctor() in {0, 1}
+
+    output = capsys.readouterr().out
+    assert "Termainer Doctor" in output
+    assert "Version" in output
 
 
 @pytest.mark.asyncio

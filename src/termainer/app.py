@@ -3,6 +3,10 @@ from __future__ import annotations
 import asyncio
 import argparse
 import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
 from typing import List, Optional, Type
 
 from textual.app import App
@@ -20,6 +24,93 @@ from .remote.ssh import SSHConnection
 from .server_manager import ServerConnection, ServerManager, provider_class_for
 from .ui.splash import BootScreen
 from .version import VERSION
+
+
+def _check_command(command: list[str]) -> bool:
+    try:
+        subprocess.run(
+            command,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True,
+        )
+        return True
+    except (OSError, subprocess.CalledProcessError):
+        return False
+
+
+def _print_doctor_line(ok: bool, label: str, detail: str = "") -> None:
+    mark = "✓" if ok else "✗"
+    suffix = f" {detail}" if detail else ""
+    print(f"{mark} {label}{suffix}")
+
+
+def run_doctor() -> int:
+    print("Termainer Doctor")
+    print("────────────────────────────────────")
+    print()
+
+    checks: list[bool] = []
+    core_checks: list[bool] = []
+
+    python_ok = sys.version_info >= (3, 10)
+    checks.append(python_ok)
+    core_checks.append(python_ok)
+    _print_doctor_line(python_ok, f"Python {sys.version_info.major}.{sys.version_info.minor}")
+
+    docker_cli = shutil.which("docker") is not None
+    checks.append(docker_cli)
+    _print_doctor_line(docker_cli, "Docker CLI detected")
+
+    docker_api = docker_cli and _check_command(["docker", "info"])
+    checks.append(docker_api)
+    _print_doctor_line(docker_api, "Docker API available")
+
+    ssh_ok = shutil.which("ssh") is not None
+    checks.append(ssh_ok)
+    _print_doctor_line(ssh_ok, "SSH support enabled")
+
+    try:
+        import textual  # noqa: F401
+
+        textual_ok = True
+    except ImportError:
+        textual_ok = False
+    checks.append(textual_ok)
+    core_checks.append(textual_ok)
+    _print_doctor_line(textual_ok, "Textual installed")
+
+    try:
+        import rich  # noqa: F401
+
+        rich_ok = True
+    except ImportError:
+        rich_ok = False
+    checks.append(rich_ok)
+    core_checks.append(rich_ok)
+    _print_doctor_line(rich_ok, "Rich installed")
+
+    config_dir = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "termainer"
+    config_ok = config_dir.exists() or os.access(config_dir.parent, os.W_OK)
+    checks.append(config_ok)
+    core_checks.append(config_ok)
+    _print_doctor_line(config_ok, "Configuration directory", str(config_dir))
+
+    checks.append(True)
+    core_checks.append(True)
+    _print_doctor_line(True, "Version", VERSION)
+
+    print()
+    if all(checks):
+        print("Everything looks good.")
+        return 0
+
+    if all(core_checks):
+        print("Core checks passed. Some optional runtime checks failed.")
+        return 0
+
+    print("Some checks failed.")
+    return 1
 
 
 class TermainerApp(App):
@@ -144,6 +235,12 @@ def parse_args() -> argparse.Namespace:
         description="Termainer — Container observability and operations from your terminal"
     )
     parser.add_argument(
+        "command",
+        nargs="?",
+        choices=("doctor",),
+        help="Run a non-interactive environment diagnostic",
+    )
+    parser.add_argument(
         "--provider",
         choices=("auto", "docker", "swarm", "podman", "kubernetes", "k8s", "openshift"),
         default="auto",
@@ -201,6 +298,9 @@ def main() -> None:
     # Initialize locale from env var first, then override with .env
     locale_init()
     args = parse_args()
+
+    if args.command == "doctor":
+        raise SystemExit(run_doctor())
 
     env_file = args.env_file
     env = load_env_file(env_file) if os.path.isfile(env_file) else {}
