@@ -37,7 +37,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Run semantic-release
+      - name: Bump version and push tag
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: semantic-release version
+
+      - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: semantic-release publish
