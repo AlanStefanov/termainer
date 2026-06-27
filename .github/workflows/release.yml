@@ -1,5 +1,9 @@
 name: Release
 
+# Triggered on every merge to main.
+# semantic-release analyzes conventional commits, bumps version,
+# updates CHANGELOG.md, creates GitHub Release, and pushes a new tag.
+# That new tag then triggers publish.yml.
 on:
   push:
     branches: [main]
@@ -10,23 +14,30 @@ permissions:
 
 jobs:
   release:
+    name: semantic-release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Use a PAT so that the version-bump commit and tag created by
+          # semantic-release can trigger subsequent workflows (GITHUB_TOKEN
+          # pushes don't re-trigger workflows by design).
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install python-semantic-release
-        run: pip install python-semantic-release>=9.0
+      - name: Install semantic-release
+        run: pip install "python-semantic-release>=9.0"
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run semantic-release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          semantic-release publish
+        run: semantic-release publish
