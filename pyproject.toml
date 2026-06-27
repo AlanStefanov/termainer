@@ -41,9 +41,6 @@ termainer = "termainer.app:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.package_data]
-termainer = ["ui/*"]
-
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
 version_variables = ["src/termainer/version.py:VERSION"]

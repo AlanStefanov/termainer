@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import os
 import socket
-from importlib.resources import files
 from pathlib import Path
 from typing import Optional
 
@@ -30,7 +29,7 @@ REPORTS_DIR = Path("reports")
 
 
 class Dashboard(Screen):
-    CSS_PATH = files("termainer.ui").joinpath("styles.tcss")
+    CSS_PATH = "styles.tcss"
 
     BINDINGS = [
         Binding("up", "focus_up", _("dashboard.bind.up"), show=True),
