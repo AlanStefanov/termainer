@@ -22,6 +22,7 @@ docker exec "${CONTAINER}" bash -lc '
   NONINTERACTIVE=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" >/dev/null
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
   brew tap AlanStefanov/termainer >/dev/null
+  brew trust AlanStefanov/termainer >/dev/null
   brew install termainer >/dev/null
   termainer --version >/dev/null
   termainer --help >/dev/null
