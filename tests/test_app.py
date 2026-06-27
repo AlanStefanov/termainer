@@ -31,7 +31,7 @@ async def test_build_server_manager_local_auto_raises_when_none_available() -> N
     ), patch("termainer.app.PodmanProvider.is_available", new=AsyncMock(return_value=False)), patch(
         "termainer.app.OpenShiftProvider.is_available", new=AsyncMock(return_value=False)
     ):
-        with pytest.raises(RuntimeError, match="No container runtime detected"):
+        with pytest.raises(RuntimeError, match="(No container runtime detected|No se detect)"):
             await build_server_manager([], ssh=None, cli_provider="auto")
 
 

@@ -9,6 +9,7 @@ from textual.app import App
 
 from .config import build_ssh_from_env, load_env_file
 from .config_manager import ServerConfig, load_config
+from .locale import _
 from .providers.base import Provider
 from .providers.docker import DockerProvider
 from .providers.kubernetes import KubernetesProvider
@@ -17,21 +18,21 @@ from .providers.podman import PodmanProvider
 from .providers.swarm import SwarmProvider
 from .remote.ssh import SSHConnection
 from .server_manager import ServerConnection, ServerManager, provider_class_for
-from .ui.home import HomeScreen
+from .ui.splash import BootScreen
 from .version import VERSION
 
 
 class TermainerApp(App):
     TITLE = "Termainer"
-    SUB_TITLE = "Container observability from your terminal"
     CSS_PATH = "ui/styles.tcss"
 
     def __init__(self, server_manager: ServerManager) -> None:
         super().__init__()
         self.server_manager = server_manager
+        self.sub_title = _("app.subtitle")
 
     def on_mount(self) -> None:
-        self.push_screen(HomeScreen(self.server_manager))
+        self.push_screen(BootScreen(self.server_manager))
 
 
 async def detect_provider(ssh: Optional[SSHConnection] = None) -> Provider:
@@ -46,10 +47,7 @@ async def detect_provider(ssh: Optional[SSHConnection] = None) -> Provider:
         instance = cls(ssh=ssh) if ssh else cls()
         if await instance.is_available():
             return instance
-    raise RuntimeError(
-        "No container runtime detected. "
-        "Please ensure Docker, Swarm, Podman, or kubectl/oc is available and running."
-    )
+    raise RuntimeError(_("app.error.no_runtime"))
 
 
 async def detect_available_providers(ssh: Optional[SSHConnection] = None) -> List[Provider]:
@@ -86,11 +84,11 @@ async def create_provider(
     cls = providers.get(provider_name.lower())
     if cls is None:
         available = ", ".join(sorted(providers))
-        raise RuntimeError(f"Unknown provider '{provider_name}'. Available providers: {available}")
+        raise RuntimeError(_("app.error.unknown_provider", provider=provider_name, available=available))
 
     instance = cls(ssh=ssh) if ssh else cls()
     if not await instance.is_available():
-        raise RuntimeError(f"Provider '{provider_name}' is not available")
+        raise RuntimeError(_("app.error.provider_not_available", provider=provider_name))
     return instance
 
 
@@ -128,18 +126,15 @@ async def build_server_manager(
         # Local auto-detect mode: solo proveedores locales, sin conexiones SSH al startup
         available = await detect_available_providers(ssh=None)
         if not available:
-            raise RuntimeError(
-                "No container runtime detected. "
-                "Please ensure Docker, Swarm, Podman, or kubectl/oc is available and running."
-            )
+            raise RuntimeError(_("app.error.no_runtime"))
         for provider in available:
-            label = f"Local {provider.name.capitalize()}"
+            label = _("app.server.local_label", provider=provider.name.capitalize())
             connections.append(ServerConnection(label=label, provider=provider, ssh=None))
 
         return ServerManager(connections)
 
     provider = await create_provider(provider_name, ssh)
-    label = f"{provider.name.capitalize()} ({ssh.host})" if ssh else f"Local {provider.name.capitalize()}"
+    label = _("app.server.remote_label", provider=provider.name.capitalize(), host=ssh.host) if ssh else _("app.server.local_label", provider=provider.name.capitalize())
     connections.append(ServerConnection(label=label, provider=provider, ssh=ssh))
     return ServerManager(connections)
 
@@ -201,7 +196,15 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    from .locale import init as locale_init
+
+    # Initialize locale from env var first, then override with .env
+    locale_init()
     args = parse_args()
+
+    env_file = args.env_file
+    env = load_env_file(env_file) if os.path.isfile(env_file) else {}
+    locale_init(env)
 
     server_manager: Optional[ServerManager] = None
 
@@ -218,8 +221,6 @@ def main() -> None:
             build_server_manager(app_cfg.servers, ssh=None, cli_provider="auto")
         )
     else:
-        env = load_env_file(args.env_file) if os.path.isfile(args.env_file) else {}
-
         ssh = build_ssh_from_env(
             env,
             cli_host=args.host,

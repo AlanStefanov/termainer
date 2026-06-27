@@ -26,6 +26,10 @@ Construyendo plataformas escalables, liderando equipos y optimizando operaciones
 
 **Observabilidad y operación de contenedores directamente desde tu terminal.**
 
+<p align="center">
+  <img src="src/termainer/ui/logo.png" alt="Termainer Logo" width="600"/>
+</p>
+
 [![GitHub](https://img.shields.io/badge/GitHub-AlanStefanov/termainer-181717?style=flat-square&logo=github)](https://github.com/AlanStefanov/termainer)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
@@ -292,14 +296,16 @@ El dropdown se completa automáticamente con:
 |---|---|
 | `↑` / `↓` | Navegar lista de contenedores |
 | `Enter` | Seleccionar contenedor |
-| `b` / `Escape` | Volver a selección de tecnología |
-| `r` | Refrescar lista |
-| `p` | Pausar/reanudar logs |
-| `e` / `x` | Exportar logs a archivo |
+| `F5` | Refrescar lista |
+| `p` | Pausar/reanudar registros |
+| `e` | Exportar registros |
 | `a` | Iniciar contenedor |
 | `t` | Detener contenedor |
-| `R` | Reiniciar contenedor |
+| `r` | Reiniciar contenedor |
+| `o` | Política de reinicio |
+| `c` | Ejecutar comando |
 | `Delete` | Eliminar contenedor |
+| `Escape` | Volver a selección de tecnología |
 | `?` | Mostrar ayuda |
 | `q` | Salir |
 

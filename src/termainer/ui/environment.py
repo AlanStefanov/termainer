@@ -11,6 +11,7 @@ from textual.events import Resize
 from textual.screen import Screen
 from textual.widgets import Button, Static
 
+from ..locale import _
 from ..config import has_ssh_servers_configured
 from ..server_manager import ServerManager
 from ..version import VERSION
@@ -38,11 +39,11 @@ class TechnologyCard:
 
 
 TECHNOLOGY_CARDS: List[TechnologyCard] = [
-    TechnologyCard("docker", "Docker", "Contenedores Docker standalone"),
-    TechnologyCard("kubernetes", "Kubernetes", "Pods y namespaces en clusters K8s"),
-    TechnologyCard("podman", "Podman", "Contenedores rootless y pods locales/remotos"),
-    TechnologyCard("openshift", "OpenShift", "Workloads sobre clusters OpenShift"),
-    TechnologyCard("swarm", "Docker Swarm", "Servicios, tasks y nodos Swarm"),
+    TechnologyCard("docker", "Docker", _("environment.subtitle.docker")),
+    TechnologyCard("kubernetes", "Kubernetes", _("environment.subtitle.kubernetes")),
+    TechnologyCard("podman", "Podman", _("environment.subtitle.podman")),
+    TechnologyCard("openshift", "OpenShift", _("environment.subtitle.openshift")),
+    TechnologyCard("swarm", "Docker Swarm", _("environment.subtitle.swarm")),
 ]
 
 
@@ -57,14 +58,14 @@ PROVIDER_CLI_COMMAND = {
 
 class EnvironmentScreen(Screen):
     BINDINGS = [
-        Binding("up", "focus_up", "Up", priority=True),
-        Binding("down", "focus_down", "Down", priority=True),
-        Binding("left", "focus_left", "Left", priority=True),
-        Binding("right", "focus_right", "Right", priority=True),
-        Binding("enter", "select_focused", "Select", priority=True),
-        Binding("?", "show_welcome_help", "Help", priority=True),
-        Binding("h", "show_welcome_help", "Help", priority=True),
-        Binding("q", "quit", "Quit", priority=True),
+        Binding("up", "focus_up", _("environment.bind.up"), priority=True),
+        Binding("down", "focus_down", _("environment.bind.down"), priority=True),
+        Binding("left", "focus_left", _("environment.bind.left"), priority=True),
+        Binding("right", "focus_right", _("environment.bind.right"), priority=True),
+        Binding("enter", "select_focused", _("environment.bind.select"), priority=True),
+        Binding("?", "show_welcome_help", _("environment.bind.help"), priority=True),
+        Binding("h", "show_welcome_help", _("environment.bind.help"), priority=True),
+        Binding("q", "quit", _("environment.bind.quit"), priority=True),
     ]
 
     def __init__(self, server_manager: ServerManager) -> None:
@@ -89,20 +90,20 @@ class EnvironmentScreen(Screen):
 
         yield Vertical(
             Static(f"[bold #22d3ee]TERMAINER[/] [#808080]v{VERSION}[/]", id="env-brand"),
-            Static("Selecciona la tecnología que quieres monitorear", id="env-title"),
+            Static(_("environment.title"), id="env-title"),
             Static(
-                "[dim]Cada dashboard permite vista multi-servidor con selector de conexiones SSH/locales.[/]",
+                f"[dim]{_('environment.copy')}[/]",
                 id="env-copy",
             ),
             *rows,
             Horizontal(
                 Static(
-                    "[reverse] ↑↓←→ [/reverse] Navegar   [reverse] Enter [/reverse] Seleccionar   [reverse] q [/reverse] Salir",
+                    _("environment.footer.full"),
                     id="env-footer-full",
                     classes="env-footer-text",
                 ),
                 Static(
-                    "[reverse] Enter [/reverse] Seleccionar   [reverse] q [/reverse] Salir",
+                    _("environment.footer.compact"),
                     id="env-footer-compact",
                     classes="env-footer-text",
                 ),
@@ -127,14 +128,14 @@ class EnvironmentScreen(Screen):
     def _provider_status_text(self, provider_name: str) -> str:
         count = len(self._servers_for_provider(provider_name))
         if count > 0:
-            return f"[bold #4ade80]{count} conexión(es) disponible(s)[/]"
+            return _("environment.status.connections", count=str(count))
         if self._provider_cli_available(provider_name):
             if provider_name in {"kubernetes", "openshift"}:
                 if self._has_remote_servers:
-                    return "[bold #fbbf24]CLI detectada, falta login/contexto o conexión remota[/]"
-                return "[bold #fbbf24]CLI detectada, cluster local no disponible[/]"
-            return "[bold #fbbf24]CLI detectada, sin servidores configurados[/]"
-        return "[bold #f87171]No instalado local ni conexión remota[/]"
+                    return _("environment.status.cli_no_context", provider=provider_name.capitalize())
+                return _("environment.status.cli_no_cluster", provider=provider_name.capitalize())
+            return _("environment.status.cli_no_servers", provider=provider_name.capitalize())
+        return _("environment.status.not_available", provider=provider_name.capitalize())
 
     def _technology_card(self, tech: TechnologyCard, idx: int) -> Vertical:
         icon = _server_icon(tech.provider)
@@ -146,7 +147,7 @@ class EnvironmentScreen(Screen):
             Static(f"{icon} [bold white]{tech.title}[/]", classes="env-card-title"),
             Static(f"[dim]{tech.subtitle}[/]", classes="env-card-provider"),
             Static(self._provider_status_text(tech.provider), classes="env-card-copy"),
-            Button("Abrir dashboard", id=f"env-btn-{idx}", classes="env-card-button"),
+            Button(_("environment.button.open"), id=f"env-btn-{idx}", classes="env-card-button"),
             classes="env-card",
             id=card_id,
         )
@@ -158,10 +159,9 @@ class EnvironmentScreen(Screen):
         if self._card_ids:
             self.query_one(f"#{self._card_ids[0]}").focus()
         
-        # Check if SSH servers are configured for multi-server access
         if not has_ssh_servers_configured():
             self.notify(
-                "💡 Configura servidores remotos en ~/.ssh/config para acceso multi-servidor",
+                _("environment.notify.ssh_hint"),
                 severity="information",
                 timeout=5,
             )
@@ -172,7 +172,10 @@ class EnvironmentScreen(Screen):
     def _apply_responsive_mode(self, width: int, height: int) -> None:
         compact = width < 120 or height < 34
         ultra_compact = width < 95 or height < 28
-        root = self.query_one("#env-root", Vertical)
+        try:
+            root = self.query_one("#env-root", Vertical)
+        except Exception:
+            return
         if compact:
             root.add_class("compact")
         else:
@@ -202,25 +205,22 @@ class EnvironmentScreen(Screen):
                 if provider_name in {"kubernetes", "openshift"}:
                     if self._has_remote_servers:
                         self.notify(
-                            f"{provider_name.capitalize()} detectado, pero sin contexto activo "
-                            "(login/kubeconfig) ni servidor remoto configurado.",
+                            _("environment.notify.no_context", provider=provider_name.capitalize()),
                             severity="warning",
                         )
                     else:
                         self.notify(
-                            f"{provider_name.capitalize()} detectado, pero cluster local no disponible.",
+                            _("environment.notify.no_cluster", provider=provider_name.capitalize()),
                             severity="warning",
                         )
                     return
                 self.notify(
-                    f"{provider_name.capitalize()} detectado, pero sin servidores "
-                    "locales/remotos listos para monitorear.",
+                    _("environment.notify.no_servers", provider=provider_name.capitalize()),
                     severity="warning",
                 )
                 return
             self.notify(
-                f"{provider_name.capitalize()} no esta instalado en tu local "
-                "o no esta conectado a un servidor remoto.",
+                _("environment.notify.not_installed", provider=provider_name.capitalize()),
                 severity="warning",
             )
             return

@@ -216,13 +216,9 @@ Dashboard {
     color: #808080;
 }
 
-#env-primary-row {
-    height: 12;
-    margin-top: 1;
-}
-
-#env-secondary-row {
-    height: 10;
+#env-row-0,
+#env-row-1 {
+    height: 1fr;
     margin-top: 1;
 }
 
@@ -233,6 +229,7 @@ Dashboard {
     border: solid #2a2a2a;
     margin: 0 1;
     background: #141414;
+    content-align: center middle;
 }
 
 .env-card:focus-within,
@@ -243,6 +240,11 @@ Dashboard {
 
 .env-card-title {
     height: 2;
+}
+
+.env-card-provider {
+    height: 1;
+    color: #808080;
 }
 
 .env-card-copy {
@@ -596,204 +598,281 @@ Footer {
 
 
 
+/* Boot Screen */
+#boot-root {
+    height: 100%;
+    background: #090B10;
+    align: center middle;
+}
+
+#boot-panel {
+    width: 52;
+    height: auto;
+    padding: 2 2;
+    border: solid #1E2430;
+    background: #0D1117;
+}
+
+#boot-brand {
+    height: 3;
+    text-align: center;
+    content-align: center middle;
+    padding-bottom: 1;
+}
+
+#boot-sep {
+    height: 1;
+    color: #1E2430;
+    text-align: center;
+}
+
+#boot-messages {
+    height: auto;
+    min-height: 6;
+    padding-top: 1;
+    color: #d4d4d4;
+}
+
+
 /* Home */
 #home-root {
-    height: 100%;
-    padding: 1 3;
-    background: #0a0a0a;
+    height: 1fr;
     overflow-y: auto;
+    background: #090B10;
+    padding: 0 2 1 2;
 }
 
+/* ── Header ──────────────────────────────────── */
 #home-header {
-    height: 2;
-}
-
-#home-header-left {
-    width: 30;
-    content-align: left middle;
-}
-
-#home-header-center {
-    width: 1fr;
-    text-align: center;
-    color: #5c5c5c;
-}
-
-#home-header-right {
-    width: 10;
-    content-align: right middle;
-}
-
-#home-logo-block {
-    height: 8;
-}
-
-.home-logo {
-    content-align: center middle;
-}
-
-.home-version {
-    text-align: center;
-    color: #5c5c5c;
-}
-
-.home-tagline {
-    text-align: center;
-    color: #808080;
-    height: 2;
-}
-
-#home-tech-icons {
-    height: 2;
-    align: center middle;
+    height: 3;
+    border-bottom: solid #1E2430;
+    background: #090B10;
     margin-bottom: 1;
 }
 
-.home-tech-icon {
-    width: auto;
-    margin: 0 1;
+#home-logo {
+    width: 34;
+    content-align: left middle;
+}
+
+#home-welcome {
+    width: 1fr;
+    content-align: center middle;
     color: #808080;
 }
 
-#home-about {
+#home-status {
+    width: 26;
+    content-align: right middle;
+    text-align: right;
+}
+
+/* ── Hero ────────────────────────────────────── */
+#home-hero {
     height: auto;
-    margin: 0 2;
+    margin: 1 0;
+    padding-bottom: 1;
+    border-bottom: solid #1E2430;
 }
 
-#home-about-row {
-    height: 10;
-}
-
-#home-about > Static.home-section-title {
-    height: 2;
+#hero-logo {
     text-align: center;
+    height: 8;
+    content-align: center middle;
 }
 
-#home-about-row > #home-about-row > #home-about-text {
-    width: 2fr;
+#hero-tagline {
+    text-align: center;
+    height: 1;
+    color: #00E5FF;
 }
 
-#home-icon-wrap {
+/* ── Platforms strip ────────────────────────── */
+#home-platforms {
+    height: 2;
+    align: center middle;
+    border-bottom: solid #1E2430;
+    margin-bottom: 1;
+}
+
+.platform-item {
     width: 1fr;
     content-align: center middle;
-    border-left: solid #1a1a1a;
-}
-
-#home-features {
-    height: auto;
-    margin: 1 2;
-}
-
-#home-features > Static.home-section-title {
-    height: 2;
     text-align: center;
 }
 
-#home-features-row {
-    height: 6;
+/* ── About ───────────────────────────────────── */
+#home-about {
+    height: auto;
+    border: solid #1E2430;
+    margin-bottom: 1;
+    padding: 0 2;
+    background: #0D1117;
 }
 
-.home-feat-card {
-    width: 1fr;
-    padding: 0 1;
-    border: solid #1a1a1a;
-    margin: 0 0;
+.section-label {
+    height: 2;
+    color: #00E5FF;
+    text-style: bold;
 }
 
-#home-platforms {
-    height: 4;
-    margin: 1 0;
-    align: center middle;
+#about-description {
+    height: auto;
+    color: #c8c8c8;
+    padding-bottom: 1;
 }
 
-.home-plat-card {
+/* ── Features ────────────────────────────────── */
+#home-features {
+    height: 7;
+    border: solid #1E2430;
+    margin-bottom: 1;
+    background: #0D1117;
+}
+
+.feat-col {
     width: 1fr;
     height: 100%;
     padding: 0 1;
-    border: solid #1a1a1a;
-    margin: 0 1;
+    border-left: solid #1E2430;
 }
 
-.home-plat-card > Static.home-plat-icon {
-    height: 2;
+.feat-col:first-child {
+    border-left: none;
 }
 
-.home-plat-card > Static.home-plat-status {
+.feat-title {
     height: 1;
 }
 
-#home-enter-hint {
+.feat-body {
+    height: 1fr;
+    color: #808080;
+}
+
+/* ── Supported platforms label ───────────────── */
+#home-supported-label {
     height: 2;
     text-align: center;
-    color: #22d3ee;
+    color: #00E5FF;
+    text-style: bold;
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
-#home-footer {
+/* ── Supported platforms cards ───────────────── */
+#home-supported {
+    height: 4;
+    background: #090B10;
+    margin-bottom: 1;
+}
+
+.plat-card {
+    width: 1fr;
+    height: 100%;
+    padding: 0 1;
+    margin: 0 1 0 0;
+    background: #0D1117;
+    text-align: center;
+    content-align: center middle;
+}
+
+.plat-card:last-child {
+    margin-right: 0;
+}
+
+.plat-docker     { border: solid #3399FF; }
+.plat-k8s        { border: solid #3399FF; }
+.plat-swarm      { border: solid #FFD400; }
+.plat-podman     { border: solid #B366FF; }
+.plat-openshift  { border: solid #FF3B30; }
+.plat-ssh        { border: solid #66FF33; }
+
+.plat-icon {
     height: 1;
-    border-top: solid #1a1a1a;
+    text-align: center;
+    text-style: bold;
 }
 
-#home-footer-left {
-    width: 1fr;
-    content-align: left middle;
+.plat-name {
+    height: 2;
+    text-align: center;
+    color: #d4d4d4;
 }
 
-#home-footer-right {
-    width: 1fr;
-    content-align: right middle;
+.plat-status {
+    height: 1;
+    text-align: center;
 }
 
-#home-footer-compact {
-    display: none;
-    width: 1fr;
-    content-align: left middle;
+/* ── Footer ──────────────────────────────────── */
+#home-footer {
+    dock: bottom;
+    height: auto;
+    border-top: solid #1E2430;
+    padding: 0 0;
+    margin-top: 0;
+    background: #090B10;
 }
 
-#home-root.compact #home-logo-block {
+#footer-enter {
     height: 3;
+    text-align: center;
+    content-align: center middle;
+    color: #d4d4d4;
 }
 
-#home-root.compact #home-about-row {
+#footer-credits {
+    height: 2;
+    text-align: center;
+    content-align: center middle;
+    color: #808080;
+}
+
+/* ── Responsive compact ──────────────────────── */
+#home-root.compact #hero-logo {
+    height: 2;
+}
+
+#home-root.compact #home-about {
+    display: none;
+}
+
+#home-root.compact #home-features {
     height: auto;
 }
 
-#home-root.compact #home-icon-wrap {
-    display: none;
-}
-
-#home-root.compact #home-features-row {
+#home-root.compact #home-supported {
     height: auto;
 }
 
-#home-root.compact #home-footer-right {
-    display: none;
+#home-root.compact #home-platforms {
+    height: 2;
+    margin-bottom: 0;
 }
 
-#home-root.compact #home-footer-left {
-    width: 100%;
+#home-root.compact #home-header {
+    margin-bottom: 0;
 }
 
-#home-root.ultra-compact #home-about-row {
-    display: none;
+#home-root.compact #home-hero {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin: 0 0;
 }
 
-#home-root.ultra-compact #home-features {
-    display: none;
+#home-root.compact #home-header {
+    margin-bottom: 0;
 }
 
-#home-root.ultra-compact #home-platforms {
-    display: none;
+#home-root.compact #home-hero {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin: 0 0;
 }
 
-#home-root.ultra-compact #home-footer-left,
-#home-root.ultra-compact #home-footer-right {
-    display: none;
-}
 
-#home-root.ultra-compact #home-footer-compact {
-    display: block;
-    width: 100%;
-}
+
 
 RemoveContainerModal,
 RestartPolicyModal,
