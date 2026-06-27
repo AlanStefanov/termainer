@@ -41,7 +41,7 @@ termainer = "termainer.app:main"
 where = ["src"]
 
 [tool.semantic_release]
-version_toml = "pyproject.toml:project.version"
+version_toml = ["pyproject.toml:project.version"]
 version_variables = ["src/termainer/version.py:VERSION"]
 branch = "main"
 commit_message = "chore(release): {version}"
