@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shlex
 import shutil
 from typing import AsyncIterator, Dict, List, Optional
 
@@ -139,6 +140,58 @@ class SwarmProvider:
 
     async def remove(self, container_id: str, force: bool = False) -> None:
         await self._run("service", "rm", container_id)
+
+    async def set_restart_policy(self, container_id: str, policy: str) -> None:
+        # policy: "none" | "on-failure" | "any"
+        await self._run("service", "update", f"--restart-condition={policy}", container_id)
+
+    async def exec_command(self, container_id: str, command: str) -> AsyncIterator[str]:
+        # Swarm services don't support exec directly — find a running task container first
+        try:
+            raw = await self._run(
+                "service", "ps", container_id,
+                "--filter", "desired-state=running",
+                "--format", "{{.ID}}", "--no-trunc",
+            )
+            task_ids = [t.strip() for t in raw.strip().split("\n") if t.strip()]
+        except Exception as e:
+            yield f"[error buscando tareas del servicio: {e}]"
+            return
+        if not task_ids:
+            yield "[error: no hay tareas en ejecución para este servicio]"
+            return
+        try:
+            cid_raw = await self._run(
+                "inspect", "--format",
+                "{{.Status.ContainerStatus.ContainerID}}",
+                task_ids[0],
+            )
+            actual_cid = cid_raw.strip()
+        except Exception as e:
+            yield f"[error obteniendo contenedor de la tarea: {e}]"
+            return
+        if not actual_cid:
+            yield "[error: no se encontró contenedor para la tarea]"
+            return
+        try:
+            parts = shlex.split(command)
+        except ValueError:
+            parts = command.split()
+        cmd = ["exec", actual_cid] + parts
+        if self._ssh:
+            stream = await self._ssh.stream(["docker"] + cmd)
+        else:
+            proc = await asyncio.create_subprocess_exec(
+                self._docker_path, *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            stream = proc.stdout
+        while True:
+            line = await stream.readline()
+            if not line:
+                break
+            yield line.decode("utf-8", errors="replace").rstrip("\n")
 
     async def close(self) -> None:
         pass

@@ -212,6 +212,45 @@ cp .env.example .env
 termainer
 ```
 
+#### SSH Config Auto-Discovery (Recommended)
+
+Termainer automatically discovers servers from your **`~/.ssh/config`** file. This is the **recommended approach** for multi-server setups—no `.env` file needed!
+
+Simply define your remote servers in `~/.ssh/config`:
+
+```
+Host prod-web
+    HostName ec2-54-123-45-67.us-east-1.compute.amazonaws.com
+    User ubuntu
+    IdentityFile ~/.ssh/production.pem
+
+Host staging-k8s
+    HostName k8s-staging.example.com
+    User admin
+    IdentityFile ~/.ssh/staging-key
+
+Host dev-local
+    HostName 192.168.1.100
+    User devuser
+    IdentityFile ~/.ssh/dev-key
+```
+
+Then launch Termainer:
+
+```bash
+termainer
+```
+
+You'll see all servers from your SSH config automatically loaded in the server dropdown. No configuration files needed!
+
+> **⚠️ Important:** Remote servers must have the Docker CLI installed and the Docker
+> daemon socket accessible **without `sudo`**. The user connecting via SSH must be
+> a member of the `docker` group (or equivalent) so that `docker ps`, `docker inspect`,
+> etc. work without privilege escalation. Termainer uses SSH port forwarding to
+> tunnel the remote Docker socket to a local Unix socket, so all Docker commands
+> run locally against the forwarded socket — this avoids issues with remote Docker
+> versions, PATH, and `--format` compatibility.
+
 #### SSH Authentication Methods
 
 | Method | How to use |
@@ -233,12 +272,17 @@ sudo yum install sshpass
 
 The environment screen is technology-first (`Docker`, `Swarm`, `Kubernetes`, `Podman`, `OpenShift`).
 
-When you configure multiple servers in `config.yaml`, each technology dashboard can aggregate its related servers. You can:
+When you configure multiple servers (via `config.yaml` or `~/.ssh/config`), each technology dashboard can aggregate its related servers. You can:
 
-- Select **"All"** to see resources from all servers for that selected technology
-- Select **a specific server** to isolate one environment
-- **Switch servers** anytime using the server tabs at the top of the dashboard
+- **Server dropdown** at the top of the dashboard to select a specific server
+- **"Todos" (All)** option to see resources from all servers for that technology
+- **Switch servers anytime** using the server dropdown in the sidebar
 - Each container shows its **server name** prefix when in multi-server mode
+
+The sidebar dropdown automatically populates with:
+- **Local** (your machine)
+- SSH servers from `~/.ssh/config`
+- Servers from `config.yaml` (if configured)
 
 ### Keyboard Shortcuts
 

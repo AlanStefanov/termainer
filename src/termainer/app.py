@@ -17,7 +17,7 @@ from .providers.podman import PodmanProvider
 from .providers.swarm import SwarmProvider
 from .remote.ssh import SSHConnection
 from .server_manager import ServerConnection, ServerManager, provider_class_for
-from .ui.splash import SplashScreen
+from .ui.home import HomeScreen
 from .version import VERSION
 
 
@@ -31,7 +31,7 @@ class TermainerApp(App):
         self.server_manager = server_manager
 
     def on_mount(self) -> None:
-        self.push_screen(SplashScreen(self.server_manager))
+        self.push_screen(HomeScreen(self.server_manager))
 
 
 async def detect_provider(ssh: Optional[SSHConnection] = None) -> Provider:
@@ -125,6 +125,7 @@ async def build_server_manager(
         provider_name = get_provider_from_env(env) or "auto"
 
     if provider_name == "auto" and ssh is None:
+        # Local auto-detect mode: solo proveedores locales, sin conexiones SSH al startup
         available = await detect_available_providers(ssh=None)
         if not available:
             raise RuntimeError(
@@ -134,6 +135,7 @@ async def build_server_manager(
         for provider in available:
             label = f"Local {provider.name.capitalize()}"
             connections.append(ServerConnection(label=label, provider=provider, ssh=None))
+
         return ServerManager(connections)
 
     provider = await create_provider(provider_name, ssh)

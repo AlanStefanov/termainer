@@ -43,6 +43,13 @@ class Provider(Protocol):
     async def remove(self, container_id: str, force: bool = False) -> None:
         ...
 
+    async def set_restart_policy(self, container_id: str, policy: str) -> None:
+        ...
+
+    async def exec_command(self, container_id: str, command: str) -> AsyncIterator[str]:
+        ...
+        yield ""  # make this a generator for the Protocol
+
     async def is_available(self) -> bool:
         ...
 

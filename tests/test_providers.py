@@ -36,18 +36,31 @@ async def test_docker_is_available_false() -> None:
 async def test_docker_list_containers() -> None:
     provider = DockerProvider()
     provider._docker_path = "/usr/bin/docker"
-    mock_run = AsyncMock(return_value='{"ID": "abc", "Names": "test"}\n')
+    mock_run = AsyncMock(side_effect=[
+        "abc123\n",  # ps -a -q
+        json.dumps([{  # inspect
+            "Id": "abc123",
+            "Name": "/test",
+            "Config": {"Image": "nginx"},
+            "State": {"Status": "running"},
+            "Created": "2024-01-01T00:00:00Z",
+            "NetworkSettings": {"Ports": {"80/tcp": [{"HostPort": "8080"}]}, "Networks": {"bridge": {}}},
+            "HostConfig": {"RestartPolicy": {"Name": "always"}},
+        }]),
+    ])
     provider._run = mock_run
     result = await provider.list_containers()
     assert len(result) == 1
-    assert result[0]["id"] == "abc"
+    assert result[0]["id"] == "abc123"
+    assert result[0]["names"] == "test"
+    assert result[0]["status"] == "running"
 
 
 @pytest.mark.asyncio
 async def test_docker_list_containers_empty() -> None:
     provider = DockerProvider()
     provider._docker_path = "/usr/bin/docker"
-    provider._run = AsyncMock(return_value="")
+    provider._run = AsyncMock(return_value="\n")
     result = await provider.list_containers()
     assert result == []
 
@@ -56,15 +69,36 @@ async def test_docker_list_containers_empty() -> None:
 async def test_docker_list_containers_multiple() -> None:
     provider = DockerProvider()
     provider._docker_path = "/usr/bin/docker"
-    raw = '\n'.join([
-        json.dumps({"ID": "c1", "Names": "first", "Status": "running"}),
-        json.dumps({"ID": "c2", "Names": "second", "Status": "exited"}),
+    mock_run = AsyncMock(side_effect=[
+        "c1\nc2\n",  # ps -a -q
+        json.dumps([  # inspect
+            {
+                "Id": "c1",
+                "Name": "/first",
+                "Config": {"Image": "img1"},
+                "State": {"Status": "running"},
+                "Created": "2024-01-01T00:00:00Z",
+                "NetworkSettings": {"Ports": {"80/tcp": [{"HostPort": "8080"}]}, "Networks": {"bridge": {}}},
+                "HostConfig": {"RestartPolicy": {"Name": ""}},
+            },
+            {
+                "Id": "c2",
+                "Name": "/second",
+                "Config": {"Image": "img2"},
+                "State": {"Status": "exited"},
+                "Created": "2024-01-02T00:00:00Z",
+                "NetworkSettings": {"Ports": {}, "Networks": {}},
+                "HostConfig": {"RestartPolicy": {"Name": ""}},
+            },
+        ]),
     ])
-    provider._run = AsyncMock(return_value=raw)
+    provider._run = mock_run
     result = await provider.list_containers()
     assert len(result) == 2
     assert result[0]["id"] == "c1"
     assert result[1]["names"] == "second"
+    assert result[0]["status"] == "running"
+    assert result[1]["status"] == "exited"
 
 
 @pytest.mark.asyncio
@@ -73,7 +107,7 @@ async def test_docker_inspect() -> None:
     provider._docker_path = "/usr/bin/docker"
     provider._run = AsyncMock(return_value=json.dumps([{"Id": "abc", "Config": {"Env": ["FOO=bar"]}}]))
     result = await provider.inspect("abc")
-    assert result["id"] == "abc"
+    assert result["Id"] == "abc"
 
 
 @pytest.mark.asyncio
@@ -82,7 +116,7 @@ async def test_docker_inspect_single_object() -> None:
     provider._docker_path = "/usr/bin/docker"
     provider._run = AsyncMock(return_value=json.dumps({"Id": "abc"}))
     result = await provider.inspect("abc")
-    assert result["id"] == "abc"
+    assert result["Id"] == "abc"
 
 
 @pytest.mark.asyncio
@@ -244,10 +278,11 @@ async def test_podman_is_available_false() -> None:
 async def test_podman_list_containers() -> None:
     provider = PodmanProvider()
     provider._podman_path = "/usr/bin/podman"
-    provider._run = AsyncMock(return_value='{"ID": "abc", "Names": "test"}\n')
+    # Podman returns its own JSON format (list of objects)
+    provider._run = AsyncMock(return_value=json.dumps([{"Id": "abc", "Names": ["test"]}]))
     result = await provider.list_containers()
     assert len(result) == 1
-    assert result[0]["id"] == "abc"
+    assert result[0]["Id"] == "abc"
 
 
 # ── KubernetesProvider ────────────────────────────────────────
@@ -256,9 +291,10 @@ async def test_podman_list_containers() -> None:
 async def test_kubernetes_list_containers() -> None:
     provider = KubernetesProvider()
     provider._kubectl_path = "/usr/bin/kubectl"
-    provider._run = AsyncMock(return_value=json.dumps([
-        {"metadata": {"name": "pod1"}, "status": {"phase": "Running"}}
-    ]))
+    # kubectl get pods -o json returns {"items": [...]}
+    provider._run = AsyncMock(return_value=json.dumps({
+        "items": [{"metadata": {"name": "pod1", "namespace": "default"}, "status": {"phase": "Running"}, "spec": {"containers": []}}]
+    }))
     result = await provider.list_containers()
     assert len(result) == 1
     assert result[0]["name"] == "pod1"
@@ -284,9 +320,10 @@ async def test_openshift_is_available_false() -> None:
 async def test_openshift_list_containers() -> None:
     provider = OpenShiftProvider()
     provider._oc_path = "/usr/bin/oc"
-    provider._run = AsyncMock(return_value=json.dumps([
-        {"metadata": {"name": "pod1"}, "status": {"phase": "Running"}}
-    ]))
+    # oc get pods -o json returns {"items": [...]}
+    provider._run = AsyncMock(return_value=json.dumps({
+        "items": [{"metadata": {"name": "pod1", "namespace": "default"}, "status": {"phase": "Running"}, "spec": {"containers": []}}]
+    }))
     result = await provider.list_containers()
     assert len(result) == 1
     assert result[0]["name"] == "pod1"

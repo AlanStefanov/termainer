@@ -89,9 +89,8 @@ def test_has_local_true(docker_provider: DockerProvider) -> None:
 
 
 def test_has_local_false_with_ssh(monkeypatch) -> None:
-    from terminator.remote.ssh import SSHConnection  # type: ignore[import-unused]
+    from termainer.remote.ssh import SSHConnection
     try:
-        from termainer.remote.ssh import SSHConnection
         ssh = SSHConnection(host="remote.example.com")
         mgr = ServerManager([
             ServerConnection(label="remote", provider=DockerProvider(), ssh=ssh),

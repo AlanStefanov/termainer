@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Dict, Optional
 
 from .remote.ssh import SSHConnection
+from .ssh_config import SSHServer, get_ssh_servers, filter_ssh_servers_for_container_mgmt
 
 
 def load_env_file(path: str = ".env") -> Dict[str, str]:
@@ -44,3 +45,38 @@ def build_ssh_from_env(
 
 def get_provider_from_env(env: Dict[str, str]) -> Optional[str]:
     return env.get("TERMAINER_REMOTE_PROVIDER") or None
+
+
+def build_ssh_from_ssh_server(
+    ssh_server: SSHServer,
+    cli_password: Optional[str] = None,
+) -> SSHConnection:
+    """Build SSHConnection from an SSHServer object (parsed from ~/.ssh/config).
+
+    Uses the Host alias so SSH config matching works correctly (ProxyJump, etc).
+    User/key/port are passed explicitly only when specified in the config entry.
+    """
+    return SSHConnection(
+        host=ssh_server.host,
+        user=ssh_server.user,
+        key_path=ssh_server.identity_file,
+        password=cli_password,
+        port=ssh_server.port,
+    )
+
+
+def get_configured_ssh_servers() -> Dict[str, SSHServer]:
+    """
+    Get SSH servers from ~/.ssh/config that are suitable for container management.
+    Filters out localhost entries.
+
+    Returns:
+        Dict mapping connection aliases to SSHServer objects
+    """
+    all_servers = get_ssh_servers()
+    return filter_ssh_servers_for_container_mgmt(all_servers)
+
+
+def has_ssh_servers_configured() -> bool:
+    """Check if any SSH servers are configured in ~/.ssh/config."""
+    return bool(get_configured_ssh_servers())

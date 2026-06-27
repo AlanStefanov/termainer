@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock
-
-import pytest
 
 from termainer.config import build_ssh_from_env, load_env_file
 

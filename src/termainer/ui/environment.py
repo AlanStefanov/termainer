@@ -11,17 +11,18 @@ from textual.events import Resize
 from textual.screen import Screen
 from textual.widgets import Button, Static
 
+from ..config import has_ssh_servers_configured
 from ..server_manager import ServerManager
 from ..version import VERSION
 from .dashboard import Dashboard
 
 
 _SERVER_ICONS = {
-    "docker": "[bold green]◇[/]",
-    "podman": "[bold cyan]◇[/]",
-    "kubernetes": "[bold magenta]◈[/]",
-    "openshift": "[bold red]◈[/]",
-    "swarm": "[bold yellow]⬢[/]",
+    "docker": "[bold #4ade80]◇[/]",
+    "podman": "[bold #22d3ee]◇[/]",
+    "kubernetes": "[bold #22d3ee]◈[/]",
+    "openshift": "[bold #f87171]◈[/]",
+    "swarm": "[bold #fbbf24]⬢[/]",
 }
 
 
@@ -87,16 +88,32 @@ class EnvironmentScreen(Screen):
             rows.append(Horizontal(*row_cards, id=f"env-row-{len(rows)}"))
 
         yield Vertical(
-            Static(f"[bold green]TERMAINER[/] [cyan]v{VERSION}[/]", id="env-brand"),
+            Static(f"[bold #22d3ee]TERMAINER[/] [#808080]v{VERSION}[/]", id="env-brand"),
             Static("Selecciona la tecnología que quieres monitorear", id="env-title"),
             Static(
                 "[dim]Cada dashboard permite vista multi-servidor con selector de conexiones SSH/locales.[/]",
                 id="env-copy",
             ),
             *rows,
-            Static("[reverse] ↑↓←→ [/reverse] Navegar   [reverse] Enter [/reverse] Seleccionar   [reverse] q [/reverse] Salir", id="env-footer"),
+            Horizontal(
+                Static(
+                    "[reverse] ↑↓←→ [/reverse] Navegar   [reverse] Enter [/reverse] Seleccionar   [reverse] q [/reverse] Salir",
+                    id="env-footer-full",
+                    classes="env-footer-text",
+                ),
+                Static(
+                    "[reverse] Enter [/reverse] Seleccionar   [reverse] q [/reverse] Salir",
+                    id="env-footer-compact",
+                    classes="env-footer-text",
+                ),
+                id="env-footer",
+            ),
             id="env-root",
         )
+
+    @property
+    def _has_remote_servers(self) -> bool:
+        return any(s.ssh is not None for s in self._server_manager.servers)
 
     def _servers_for_provider(self, provider_name: str):
         return [s for s in self._server_manager.servers if s.provider.name.lower() == provider_name.lower()]
@@ -110,12 +127,14 @@ class EnvironmentScreen(Screen):
     def _provider_status_text(self, provider_name: str) -> str:
         count = len(self._servers_for_provider(provider_name))
         if count > 0:
-            return f"[bold green]{count} conexión(es) disponible(s)[/]"
+            return f"[bold #4ade80]{count} conexión(es) disponible(s)[/]"
         if self._provider_cli_available(provider_name):
             if provider_name in {"kubernetes", "openshift"}:
-                return "[bold yellow]CLI detectada, falta login/contexto o conexión remota[/]"
-            return "[bold yellow]CLI detectada, sin servidores configurados[/]"
-        return "[bold red]No instalado local ni conexión remota[/]"
+                if self._has_remote_servers:
+                    return "[bold #fbbf24]CLI detectada, falta login/contexto o conexión remota[/]"
+                return "[bold #fbbf24]CLI detectada, cluster local no disponible[/]"
+            return "[bold #fbbf24]CLI detectada, sin servidores configurados[/]"
+        return "[bold #f87171]No instalado local ni conexión remota[/]"
 
     def _technology_card(self, tech: TechnologyCard, idx: int) -> Vertical:
         icon = _server_icon(tech.provider)
@@ -138,6 +157,14 @@ class EnvironmentScreen(Screen):
         self._apply_responsive_mode(self.size.width, self.size.height)
         if self._card_ids:
             self.query_one(f"#{self._card_ids[0]}").focus()
+        
+        # Check if SSH servers are configured for multi-server access
+        if not has_ssh_servers_configured():
+            self.notify(
+                "💡 Configura servidores remotos en ~/.ssh/config para acceso multi-servidor",
+                severity="information",
+                timeout=5,
+            )
 
     def on_resize(self, event: Resize) -> None:
         self._apply_responsive_mode(event.size.width, event.size.height)
@@ -173,11 +200,17 @@ class EnvironmentScreen(Screen):
         if not matches:
             if self._provider_cli_available(provider_name):
                 if provider_name in {"kubernetes", "openshift"}:
-                    self.notify(
-                        f"{provider_name.capitalize()} detectado, pero sin contexto activo "
-                        "(login/kubeconfig) ni servidor remoto configurado.",
-                        severity="warning",
-                    )
+                    if self._has_remote_servers:
+                        self.notify(
+                            f"{provider_name.capitalize()} detectado, pero sin contexto activo "
+                            "(login/kubeconfig) ni servidor remoto configurado.",
+                            severity="warning",
+                        )
+                    else:
+                        self.notify(
+                            f"{provider_name.capitalize()} detectado, pero cluster local no disponible.",
+                            severity="warning",
+                        )
                     return
                 self.notify(
                     f"{provider_name.capitalize()} detectado, pero sin servidores "
@@ -262,6 +295,6 @@ class EnvironmentScreen(Screen):
         self.app.exit()
 
     def action_show_welcome_help(self) -> None:
-        from .splash import SplashScreen
+        from .home import HomeScreen
 
-        self.app.switch_screen(SplashScreen(self._server_manager, auto_dismiss=False))
+        self.app.switch_screen(HomeScreen(self._server_manager))
