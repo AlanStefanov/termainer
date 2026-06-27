@@ -37,6 +37,7 @@ dev = [
 [project.scripts]
 termainer = "termainer.app:main"
 
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
