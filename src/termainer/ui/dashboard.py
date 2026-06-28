@@ -72,6 +72,11 @@ class Dashboard(Screen):
         self._server_manager = server_manager
         self._root_server_manager = root_server_manager or server_manager
         self._active_server = server_label
+        if server_label:
+            conn = server_manager.get_connection(server_label)
+            self._active_ssh_conn: Optional[SSHConnection] = conn if conn else None
+        else:
+            self._active_ssh_conn: Optional[SSHConnection] = None
         self._selected_container: Optional[str] = None
         self._selected_info: ContainerSummary = {}
         self._selected_server: Optional[str] = None
@@ -79,7 +84,7 @@ class Dashboard(Screen):
         self._stats_task: Optional[asyncio.Task] = None
         self._compact_mode = False
         self._ultra_compact_mode = False
-        self._active_ssh_conn: Optional[SSHConnection] = None  # current SSH connection
+        # self._active_ssh_conn is initialized above with server_label
         self._saved_docker_host: Optional[str] = None
         self._refresh_request_id = 0
         self._switching = False
@@ -183,14 +188,15 @@ class Dashboard(Screen):
         self.run_worker(self._switch_server(str(event.value)))
 
     def _build_server_info_label(self) -> Optional[Static]:
-        """Build a green label showing server hostname and IP/DNS."""
+        """Build a label showing server hostname and IP/DNS."""
         server = self._active_server or ""
         if not server:
             return None
 
         if self._active_ssh_conn:
             host = self._active_ssh_conn.host
-            return Static(_("dashboard.server_info.ssh", server=escape(server), host=escape(host)), id="server-info")
+            display = f"{server} ({host})" if server != host else server
+            return Static(f"[dim #4ade80]⬢ {escape(display)}[/]", id="server-info")
 
         hostname = socket.gethostname()
         ip = self._get_local_ip()
@@ -401,11 +407,13 @@ class Dashboard(Screen):
 
     def on_mount(self) -> None:
         self._apply_responsive_mode(self.size.width, self.size.height)
-        if self._active_server:
-            conn = self._server_manager.get_connection(self._active_server)
-            if conn:
-                self._active_ssh_conn = conn
         self.run_worker(self._refresh_containers())
+
+    def on_unmount(self) -> None:
+        self._cancel_tasks()
+        if self._active_ssh_conn:
+            asyncio.create_task(self._active_ssh_conn.close_tunnel())
+        self._restore_docker_host()
 
     def on_resize(self, event: Resize) -> None:
         self._apply_responsive_mode(event.size.width, event.size.height)
