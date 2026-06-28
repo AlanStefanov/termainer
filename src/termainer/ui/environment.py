@@ -609,6 +609,13 @@ class EnvironmentScreen(Screen):
 
         matches = self._servers_for_provider(provider_name)
         if not matches:
+            servers = get_all_ssh_servers()
+            if servers:
+                self.app.push_screen(
+                    ServerSelectionModal(provider_name, servers),
+                    lambda aliases: self._on_server_selected(aliases, provider_name)
+                )
+                return
             if self._provider_cli_available(provider_name):
                 if provider_name in {"kubernetes", "openshift"}:
                     if self._has_remote_servers:
@@ -625,13 +632,6 @@ class EnvironmentScreen(Screen):
                 self.notify(
                     _("environment.notify.no_servers", provider=provider_name.capitalize()),
                     severity="warning",
-                )
-                return
-            servers = get_all_ssh_servers()
-            if servers:
-                self.app.push_screen(
-                    ServerSelectionModal(provider_name, servers),
-                    lambda aliases: self._on_server_selected(aliases, provider_name)
                 )
                 return
             self.notify(
