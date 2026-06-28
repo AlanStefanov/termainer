@@ -702,7 +702,7 @@ class EnvironmentScreen(Screen):
         self.app.switch_screen(
             Dashboard(
                 ServerManager(successful),
-                server_label=None,
+                server_label=successful[0].label,
                 root_server_manager=self._server_manager,
             )
         )
