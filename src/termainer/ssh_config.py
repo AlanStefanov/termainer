@@ -16,12 +16,14 @@ class SSHServer:
         user: Optional[str] = None,
         port: int = 22,
         identity_file: Optional[str] = None,
+        source: str = "ssh_config",
     ) -> None:
         self.host = host  # The "Host" identifier (connection alias)
         self.hostname = hostname or host  # Actual hostname to connect to
         self.user = user  # None = let SSH use its default (local user)
         self.port = port
         self.identity_file = identity_file
+        self.source = source  # "ssh_config" | "app_config"
 
     @property
     def display_name(self) -> str:

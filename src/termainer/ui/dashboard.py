@@ -5,7 +5,7 @@ import os
 import socket
 from importlib.resources import files
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
 from rich.markup import escape
 from textual.app import ComposeResult
@@ -19,14 +19,27 @@ from ..locale import _
 from ..config import build_ssh_from_ssh_server, get_configured_ssh_servers
 from ..providers.base import ContainerSummary, Provider
 from ..providers.docker import DockerProvider
+from ..providers.kubernetes import KubernetesProvider
+from ..providers.openshift import OpenShiftProvider
+from ..providers.podman import PodmanProvider
+from ..providers.swarm import SwarmProvider
 from ..remote.ssh import SSHConnection
-from ..server_manager import ServerConnection, ServerManager
+from ..server_manager import ServerConnection, ServerManager, provider_class_for
+from ..storage import save_provider_servers_cache, get_cached_aliases
 from ..utils.helpers import build_report_header, format_timestamp
 from ..version import VERSION
 from .widgets import ContainerItem, DetailsWidget, LogWidget, StatsWidget
 
 
 REPORTS_DIR = Path("reports")
+
+HEALTH_CHECKS: dict[str, list[str]] = {
+    "docker": ["docker", "info"],
+    "swarm": ["docker", "info"],
+    "kubernetes": ["kubectl", "cluster-info"],
+    "podman": ["podman", "info"],
+    "openshift": ["oc", "whoami"],
+}
 
 
 class Dashboard(Screen):
@@ -46,7 +59,7 @@ class Dashboard(Screen):
         Binding("o", "restart_policy", _("dashboard.bind.restart_policy"), show=True, priority=True),
         Binding("c", "exec_cmd", _("dashboard.bind.exec"), show=True, priority=True),
         Binding("escape", "back_to_environment", _("dashboard.bind.back"), show=True, priority=True),
-        Binding("q", "quit", _("dashboard.bind.quit"), show=True, priority=True),
+        Binding("q", "show_quit_confirm", _("dashboard.bind.quit"), show=True, priority=True),
     ]
 
     def __init__(
@@ -59,6 +72,11 @@ class Dashboard(Screen):
         self._server_manager = server_manager
         self._root_server_manager = root_server_manager or server_manager
         self._active_server = server_label
+        if server_label:
+            conn = server_manager.get_connection(server_label)
+            self._active_ssh_conn: Optional[SSHConnection] = conn if conn else None
+        else:
+            self._active_ssh_conn: Optional[SSHConnection] = None
         self._selected_container: Optional[str] = None
         self._selected_info: ContainerSummary = {}
         self._selected_server: Optional[str] = None
@@ -66,9 +84,11 @@ class Dashboard(Screen):
         self._stats_task: Optional[asyncio.Task] = None
         self._compact_mode = False
         self._ultra_compact_mode = False
-        self._active_ssh_conn: Optional[SSHConnection] = None  # current SSH connection
+        # self._active_ssh_conn is initialized above with server_label
         self._saved_docker_host: Optional[str] = None
         self._refresh_request_id = 0
+        self._switching = False
+        self._env_cache: Dict[str, Dict[str, str]] = {}
 
     @property
     def _active_provider(self) -> Optional[Provider]:
@@ -144,44 +164,40 @@ class Dashboard(Screen):
         return Vertical(brand_row, id="top-bar")
 
     def _build_server_selector(self) -> Optional[Select]:
-        """Build a Select widget with local servers + SSH aliases from ~/.ssh/config.
-        No SSH connections are made here — just reads the config file."""
-        ssh_servers = get_configured_ssh_servers()
-        total = self._server_manager.server_count + len(ssh_servers)
-        if total <= 1 and not ssh_servers:
+        """Build a Select widget with connected servers only."""
+        if self._server_manager.server_count <= 1:
             return None
 
         options: list[tuple[str, str]] = []
-
-        # Local servers (already connected)
-        for label in self._server_manager.server_labels:
-            options.append((f"⬡ {label}", f"local:{label}"))
-
-        # SSH servers from ~/.ssh/config (no connection yet)
-        for alias, srv in ssh_servers.items():
-            options.append((f"⬢ {srv.display_name}", f"ssh:{alias}"))
+        for conn in self._server_manager.servers:
+            prefix = "ssh:" if conn.ssh else "local:"
+            options.append((f"⬡ {conn.label}", f"{prefix}{conn.label}"))
 
         if not options:
             return None
 
         return Select(options, id="server-selector", classes="server-selector",
-                      value=f"local:{self._server_manager.server_labels[0]}" if self._server_manager.server_labels else Select.BLANK)
+                      value=f"local:{self._server_manager.servers[0].label}" if self._server_manager.servers else Select.BLANK)
 
     def on_select_changed(self, event: Select.Changed) -> None:
         """Handle server selector changes."""
         if event.control.id != "server-selector" or event.value is Select.BLANK:
             return
+        if self._switching:
+            return
+        self._switching = True
         self.run_worker(self._switch_server(str(event.value)))
 
     def _build_server_info_label(self) -> Optional[Static]:
-        """Build a green label showing server hostname and IP/DNS."""
+        """Build a label showing server hostname and IP/DNS."""
         server = self._active_server or ""
         if not server:
             return None
 
         if self._active_ssh_conn:
             host = self._active_ssh_conn.host
-            return Static(_("dashboard.server_info.ssh", server=escape(server), host=escape(host)), id="server-info")
+            display = f"{server} ({host})" if server != host else server
+            return Static(f"[dim #4ade80]⬢ {escape(display)}[/]", id="server-info")
 
         hostname = socket.gethostname()
         ip = self._get_local_ip()
@@ -199,55 +215,157 @@ class Dashboard(Screen):
         except Exception:
             return "127.0.0.1"
 
+    def _clear_panels(self) -> None:
+        try:
+            self.query_one("#details-content", Static).update("")
+            self.query_one("#stats-content", Static).update("")
+            self.query_one("#log-content", Static).update("")
+        except Exception:
+            pass
+
+    def _set_analyzing_status(self, label: str) -> None:
+        try:
+            self.query_one("#top-status", Static).update(
+                f"[bold #fbbf24]🔍 {_('dashboard.status.analyzing', server=escape(label))}[/]"
+            )
+        except Exception:
+            pass
+
     async def _switch_server(self, value: str) -> None:
-        """Switch active server. For SSH servers, open an SSH tunnel to forward
-        the remote Docker socket locally so all docker commands run locally."""
+        """Switch active server. For SSH servers, probe available providers
+        and use the appropriate connection method (tunnel for Docker/Swarm,
+        remote execution for K8s/Podman/OpenShift)."""
         self._cancel_tasks()
         self._selected_container = None
         self._selected_info = {}
         self._selected_server = None
+        self._clear_panels()
 
-        # Close previous tunnel if any
         if self._active_ssh_conn:
             await self._active_ssh_conn.close_tunnel()
             self._active_ssh_conn = None
         self._restore_docker_host()
 
-        if value.startswith("local:"):
-            label = value[len("local:"):]
-            self._active_server = label
+        try:
+            if value.startswith("local:"):
+                label = value[len("local:"):]
+                self._set_analyzing_status(label)
+                self._active_server = label
 
-        elif value.startswith("ssh:"):
-            alias = value[len("ssh:"):]
-            ssh_servers = get_configured_ssh_servers()
-            if alias not in ssh_servers:
-                self.notify(_("dashboard.notify.server_not_found", alias=alias), severity="error")
-                return
+            elif value.startswith("ssh:"):
+                alias = value[len("ssh:"):]
+                self._set_analyzing_status(alias)
+                ssh_servers = get_configured_ssh_servers()
+                if alias not in ssh_servers:
+                    self.notify(_("dashboard.notify.server_not_found", alias=alias), severity="error")
+                    return
 
-            ssh_server = ssh_servers[alias]
-            ssh_conn = build_ssh_from_ssh_server(ssh_server)
+                ssh_server = ssh_servers[alias]
+                ssh_conn = build_ssh_from_ssh_server(ssh_server)
 
+                provider_filter = self._active_provider.name.lower() if self._active_provider else None
+                result = await self._detect_provider_on_ssh(ssh_conn, provider_name=provider_filter)
+                if result is None:
+                    if provider_filter:
+                        self.notify(
+                            _("dashboard.notify.no_ssh_provider", alias=alias, provider=provider_filter.capitalize()),
+                            severity="error",
+                        )
+                    else:
+                        self.notify(_("dashboard.notify.no_ssh_providers", alias=alias), severity="error")
+                    return
+
+                provider_name, provider, needs_tunnel = result
+
+                if needs_tunnel:
+                    try:
+                        tunnel_socket = await ssh_conn.create_tunnel()
+                    except RuntimeError as e:
+                        self.notify(_("dashboard.notify.ssh_error", alias=alias, e=str(e)), severity="error")
+                        return
+                    self._saved_docker_host = os.environ.get("DOCKER_HOST")
+                    os.environ["DOCKER_HOST"] = f"unix://{tunnel_socket}"
+
+                self._active_ssh_conn = ssh_conn
+
+                existing = [s for s in self._server_manager.servers if s.label == alias]
+                if existing:
+                    self._server_manager.servers.remove(existing[0])
+                self._server_manager.servers.append(
+                    ServerConnection(label=alias, provider=provider, ssh=ssh_conn)
+                )
+                self._active_server = alias
+
+                if provider_filter:
+                    cached = set(get_cached_aliases(provider_filter))
+                    cached.add(alias)
+                    save_provider_servers_cache(provider_filter, sorted(cached))
+
+            await self._refresh_containers()
+            self._update_server_info()
+        finally:
+            self._switching = False
+
+    async def _detect_provider_on_ssh(
+        self, ssh_conn: SSHConnection, provider_name: Optional[str] = None
+    ) -> Optional[tuple[str, Provider, bool]]:
+        """Probe SSH host for available providers.
+
+        If provider_name is given, only probe that specific provider.
+        Otherwise probe sequentially: Docker→Swarm→K8s→Podman→OC.
+
+        Returns (provider_name, provider_instance, needs_tunnel) or None.
+        """
+        if provider_name:
+            check = HEALTH_CHECKS.get(provider_name)
+            if not check:
+                return None
             try:
-                tunnel_socket = await ssh_conn.create_tunnel()
-            except RuntimeError as e:
-                self.notify(_("dashboard.notify.ssh_error", alias=alias, e=str(e)), severity="error")
-                return
+                await ssh_conn.run(check)
+            except RuntimeError:
+                return None
+            provider_cls = provider_class_for(provider_name)
+            needs_tunnel = provider_name in ("docker", "swarm")
+            provider = provider_cls(ssh=ssh_conn) if not needs_tunnel else provider_cls()
+            return (provider_name, provider, needs_tunnel)
 
-            self._active_ssh_conn = ssh_conn
-            self._saved_docker_host = os.environ.get("DOCKER_HOST")
-            os.environ["DOCKER_HOST"] = f"unix://{tunnel_socket}"
-            provider = DockerProvider()
+        # 1. Docker (and Swarm)
+        try:
+            await ssh_conn.run(["docker", "info"])
+            try:
+                state = (await ssh_conn.run(
+                    ["docker", "info", "--format", "{{.Swarm.LocalNodeState}}"]
+                )).strip().lower()
+                if state == "active":
+                    return ("swarm", SwarmProvider(), True)
+            except RuntimeError:
+                pass
+            return ("docker", DockerProvider(), True)
+        except RuntimeError:
+            pass
 
-            existing = [s for s in self._server_manager.servers if s.label == alias]
-            if existing:
-                self._server_manager.servers.remove(existing[0])
-            self._server_manager.servers.append(
-                ServerConnection(label=alias, provider=provider, ssh=ssh_conn)
-            )
-            self._active_server = alias
+        # 2. Kubernetes
+        try:
+            await ssh_conn.run(["kubectl", "cluster-info"])
+            return ("kubernetes", KubernetesProvider(ssh=ssh_conn), False)
+        except RuntimeError:
+            pass
 
-        await self._refresh_containers()
-        self._update_server_info()
+        # 3. Podman
+        try:
+            await ssh_conn.run(["podman", "info"])
+            return ("podman", PodmanProvider(ssh=ssh_conn), False)
+        except RuntimeError:
+            pass
+
+        # 4. OpenShift
+        try:
+            await ssh_conn.run(["oc", "whoami"])
+            return ("openshift", OpenShiftProvider(ssh=ssh_conn), False)
+        except RuntimeError:
+            pass
+
+        return None
 
     def _update_server_info(self) -> None:
         """Update the server info label after switching servers."""
@@ -292,6 +410,12 @@ class Dashboard(Screen):
         self._apply_responsive_mode(self.size.width, self.size.height)
         self.run_worker(self._refresh_containers())
 
+    def on_unmount(self) -> None:
+        self._cancel_tasks()
+        if self._active_ssh_conn:
+            asyncio.create_task(self._active_ssh_conn.close_tunnel())
+        self._restore_docker_host()
+
     def on_resize(self, event: Resize) -> None:
         self._apply_responsive_mode(event.size.width, event.size.height)
 
@@ -323,7 +447,9 @@ class Dashboard(Screen):
     async def _refresh_containers(self) -> None:
         self._refresh_request_id += 1
         request_id = self._refresh_request_id
+        self._env_cache.clear()
         list_view = self.query_one("#container-list", ListView)
+        list_view.clear()
         try:
             if self._is_single_server:
                 provider = self._server_manager.get_provider(self._active_server)
@@ -336,8 +462,6 @@ class Dashboard(Screen):
             # If another refresh started while this one was awaiting I/O, ignore stale results.
             if request_id != self._refresh_request_id:
                 return
-
-            list_view.clear()
 
             for c in containers:
                 list_view.append(ContainerItem(c))
@@ -404,14 +528,27 @@ class Dashboard(Screen):
         stats_widget.reset_history()
         self._cancel_tasks()
 
-        try:
-            env = await provider.get_env(container_id)
-            details.show_details(container_info, env)
-        except Exception:
-            details.update(f"[red]{_('dashboard.notify.details_error')}[/]")
+        # Show details immediately (env from cache or empty)
+        cached = self._env_cache.get(container_id)
+        details.show_details(container_info, cached or {})
+        if cached is None:
+            asyncio.create_task(self._load_env(container_id, container_info))
 
         self._stats_task = asyncio.create_task(self._stream_stats(container_id))
         self._log_task = asyncio.create_task(self._stream_logs(container_id))
+
+    async def _load_env(self, container_id: str, container_info: ContainerSummary) -> None:
+        provider = self._provider_for(container_info)
+        if provider is None:
+            return
+        try:
+            env = await provider.get_env(container_id)
+            self._env_cache[container_id] = env
+            if container_id == self._selected_container:
+                details = self.query_one("#details-content", DetailsWidget)
+                details.show_details(container_info, env)
+        except Exception:
+            pass
 
     def _provider_for(self, container: ContainerSummary) -> Optional[Provider]:
         server_label = container.get("_server") or self._active_server
@@ -580,10 +717,15 @@ class Dashboard(Screen):
         filepath.write_text(report, encoding="utf-8")
         self.notify(_("dashboard.notify.logs_exported", filepath=str(filepath)), timeout=5)
 
-    def action_quit(self) -> None:
-        self._cancel_tasks()
-        self._close_active_tunnel()
-        self.app.exit()
+    def action_show_quit_confirm(self) -> None:
+        from .environment import ConfirmQuitModal
+        self.app.push_screen(ConfirmQuitModal(), self._on_quit_result)
+
+    def _on_quit_result(self, confirmed: bool) -> None:
+        if confirmed:
+            self._cancel_tasks()
+            self._close_active_tunnel()
+            self.app.exit()
 
     def action_restart_policy(self) -> None:
         target_container, target_info, target_server = self._current_container_target()

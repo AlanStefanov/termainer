@@ -7,6 +7,33 @@ import tempfile
 from typing import Optional
 
 
+class _StreamContext:
+    def __init__(self, ssh: "SSHConnection", command: list[str]) -> None:
+        self._ssh = ssh
+        self._command = command
+        self._proc: Optional[asyncio.subprocess.Process] = None
+
+    async def __aenter__(self) -> asyncio.StreamReader:
+        cmd = self._ssh._build_command(self._command)
+        env = os.environ.copy()
+        env["LANG"] = "C"
+        if self._ssh._use_sshpass:
+            env["SSHPASS"] = self._ssh.password
+
+        self._proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            env=env,
+        )
+        return self._proc.stdout
+
+    async def __aexit__(self, *args) -> None:
+        if self._proc and self._proc.returncode is None:
+            self._proc.terminate()
+            await self._proc.wait()
+
+
 class SSHConnection:
     def __init__(
         self,
@@ -56,6 +83,7 @@ class SSHConnection:
     async def run(self, command: list[str]) -> str:
         cmd = self._build_command(command)
         env = os.environ.copy()
+        env["LANG"] = "C"
         if self._use_sshpass:
             env["SSHPASS"] = self.password
 
@@ -77,19 +105,8 @@ class SSHConnection:
             raise RuntimeError(f"SSH command failed: {err}")
         return stdout.decode("utf-8", errors="replace")
 
-    async def stream(self, command: list[str]) -> asyncio.StreamReader:
-        cmd = self._build_command(command)
-        env = os.environ.copy()
-        if self._use_sshpass:
-            env["SSHPASS"] = self.password
-
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-            env=env,
-        )
-        return proc.stdout
+    def stream(self, command: list[str]) -> _StreamContext:
+        return _StreamContext(self, command)
 
     async def create_tunnel(
         self,

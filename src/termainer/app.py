@@ -218,7 +218,7 @@ async def build_server_manager(
         # Local auto-detect mode: solo proveedores locales, sin conexiones SSH al startup
         available = await detect_available_providers(ssh=None)
         if not available:
-            raise RuntimeError(_("app.error.no_runtime"))
+            return ServerManager([])
         for provider in available:
             label = _("app.server.local_label", provider=provider.name.capitalize())
             connections.append(ServerConnection(label=label, provider=provider, ssh=None))

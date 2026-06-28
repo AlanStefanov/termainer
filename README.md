@@ -138,9 +138,84 @@ Depending on how you installed Termainer:
 
 ---
 
+## Quick Start
+
+```bash
+# Just run it — Termainer auto-detects local Docker, Podman, kubectl, or oc
+termainer
+
+# If no local runtime is found, configure remote servers via ~/.ssh/config
+# (see below) and restart, or click any technology card to probe SSH servers
+```
+
+Termainer works **with zero configuration** for local environments. For remote servers, just add entries to `~/.ssh/config` — no config file needed.
+
+---
+
 ## Configuration
 
-Termainer uses a **YAML config file** to manage multiple servers. Create `~/.config/termainer/config.yaml`:
+### SSH Config Auto-Discovery (Recommended)
+
+Termainer automatically discovers servers from your **`~/.ssh/config`** file. This is the **recommended approach** — no YAML or `.env` file needed.
+
+Simply define your remote servers in `~/.ssh/config`:
+
+```
+Host prod-web
+    HostName ec2-54-123-45-67.us-east-1.compute.amazonaws.com
+    User ubuntu
+    IdentityFile ~/.ssh/production.pem
+
+Host staging-k8s
+    HostName k8s-staging.example.com
+    User admin
+    IdentityFile ~/.ssh/staging-key
+
+Host dev-docker
+    HostName 192.168.1.100
+    User devuser
+    IdentityFile ~/.ssh/dev-key
+```
+
+Then launch Termainer — all SSH entries appear in the server dropdown automatically:
+
+```bash
+termainer
+```
+
+When you select a technology card (e.g. "Kubernetes"), Termainer shows a **server selection dialog** with checkboxes for all configured SSH servers. Selected servers are probed **in parallel** for the chosen provider, and successful connections open the dashboard. Server preferences are cached in `~/.config/termainer/provider_servers.json`.
+
+You can also **add and remove servers directly from the UI** via the "Manage servers" button. Custom servers are persisted in `~/.config/termainer/servers.json`.
+
+> **⚠️ Docker/Swarm note:** For Docker and Swarm over SSH, Termainer uses SSH port
+> forwarding to tunnel the remote Docker socket to a local Unix socket. The remote
+> user must have access to the Docker daemon (be in the `docker` group) without `sudo`.
+> Kubernetes, Podman, and OpenShift commands run directly over SSH, no tunnel needed.
+
+### Dashboard server switching
+
+Within a dashboard, switching servers only probes the **current provider** on the target server (no multi-probe). If the server doesn't have that provider, a notification is shown and the dashboard stays on the current server.
+
+#### SSH Authentication Methods
+
+| Method | How to use |
+|---|---|
+| **Key (`.pem`)** | Set `IdentityFile` in `~/.ssh/config` |
+| **Password** | `--ssh-password 'mypass'` or `TERMAINER_REMOTE_PASSWORD` in `.env` (requires `sshpass`) |
+
+For password-based auth, install `sshpass`:
+
+```bash
+# Debian/Ubuntu
+sudo apt install sshpass
+
+# RHEL/CentOS/Fedora
+sudo yum install sshpass
+```
+
+### Multi-Server via config.yaml (Advanced)
+
+For advanced setups, create `~/.config/termainer/config.yaml`:
 
 ```yaml
 lang: en
@@ -165,9 +240,9 @@ servers:
 
 See the full [Configuration Reference](guide/configuration-reference.md) for all options.
 
-### Quick single-server (.env)
+### Single-server via .env
 
-For a single remote server, you can use `.env` or CLI flags instead:
+For a quick single remote server, use `.env` or CLI flags:
 
 ```bash
 termainer --host ec2-54-123-45-67.us-east-1.compute.amazonaws.com \
@@ -202,92 +277,40 @@ termainer --provider openshift
 
 ### Remote (SSH)
 
-Connect to remote servers running Docker or Kubernetes:
-
 ```bash
-# Using CLI flags
+# Using --host flag (single server)
 termainer --host ec2-54-123-45-67.us-east-1.compute.amazonaws.com \
           --ssh-user ubuntu \
           --ssh-key ~/.ssh/production.pem \
           --provider docker
 
-# Using .env (recommended for frequent use)
+# Using .env (recommended for frequent single-server use)
 cp .env.example .env
 # Edit .env with your server details
 termainer
 ```
 
-#### SSH Config Auto-Discovery (Recommended)
+For multi-server setups, use `~/.ssh/config` entries (see [Configuration](#ssh-config-auto-discovery-recommended)).
 
-Termainer automatically discovers servers from your **`~/.ssh/config`** file. This is the **recommended approach** for multi-server setups—no `.env` file needed!
+### Server Selection & Caching
 
-Simply define your remote servers in `~/.ssh/config`:
+When you click a technology card (e.g. "Kubernetes") and don't have it locally, Termainer shows:
 
-```
-Host prod-web
-    HostName ec2-54-123-45-67.us-east-1.compute.amazonaws.com
-    User ubuntu
-    IdentityFile ~/.ssh/production.pem
+1. **Server selection modal** — checkboxes for all SSH servers (`~/.ssh/config` + app-added)
+   - Pre-selected based on **cached preferences** (`~/.config/termainer/provider_servers.json`)
+   - "Manage servers" button to add/remove servers via the UI
+2. **Parallel probing** — selected servers are probed simultaneously for the chosen provider
+3. **Auto-cache** — successful server-provider mappings are saved for next launch
 
-Host staging-k8s
-    HostName k8s-staging.example.com
-    User admin
-    IdentityFile ~/.ssh/staging-key
-
-Host dev-local
-    HostName 192.168.1.100
-    User devuser
-    IdentityFile ~/.ssh/dev-key
-```
-
-Then launch Termainer:
-
-```bash
-termainer
-```
-
-You'll see all servers from your SSH config automatically loaded in the server dropdown. No configuration files needed!
-
-> **⚠️ Important:** Remote servers must have the Docker CLI installed and the Docker
-> daemon socket accessible **without `sudo`**. The user connecting via SSH must be
-> a member of the `docker` group (or equivalent) so that `docker ps`, `docker inspect`,
-> etc. work without privilege escalation. Termainer uses SSH port forwarding to
-> tunnel the remote Docker socket to a local Unix socket, so all Docker commands
-> run locally against the forwarded socket — this avoids issues with remote Docker
-> versions, PATH, and `--format` compatibility.
-
-#### SSH Authentication Methods
-
-| Method | How to use |
-|---|---|
-| **Key (`.pem`)** | `--ssh-key ~/.ssh/key.pem` or `TERMAINER_REMOTE_KEY_PATH` in `.env` |
-| **Password** | `--ssh-password 'mypass'` or `TERMAINER_REMOTE_PASSWORD` in `.env` (requires `sshpass`) |
-
-For password-based auth, install `sshpass`:
-
-```bash
-# Debian/Ubuntu
-sudo apt install sshpass
-
-# RHEL/CentOS/Fedora
-sudo yum install sshpass
-```
+Within a dashboard, the server dropdown lets you switch servers. Switching only probes the **current provider** on the target server — no unnecessary Docker/K8s/Podman probes.
 
 ### Multi-Server Dashboard
 
-The environment screen is technology-first (`Docker`, `Swarm`, `Kubernetes`, `Podman`, `OpenShift`).
+When multiple servers are connected (via parallel selection or pre-configured connections), each technology dashboard aggregates its related servers. You can:
 
-When you configure multiple servers (via `config.yaml` or `~/.ssh/config`), each technology dashboard can aggregate its related servers. You can:
-
-- **Server dropdown** at the top of the dashboard to select a specific server
-- **"Todos" (All)** option to see resources from all servers for that technology
-- **Switch servers anytime** using the server dropdown in the sidebar
+- Use the **server dropdown** to select a specific server
+- **Switch servers anytime** — only the current provider is probed
 - Each container shows its **server name** prefix when in multi-server mode
-
-The sidebar dropdown automatically populates with:
-- **Local** (your machine)
-- SSH servers from `~/.ssh/config`
-- Servers from `config.yaml` (if configured)
 
 ### Keyboard Shortcuts
 
@@ -343,6 +366,7 @@ CLI (termainer)
         ├── server_manager.py ← Multi-server connection manager
         ├── remote/           ← Remote connection module
         │   └── ssh.py        ←   SSH via subprocess (key + password)
+        ├── storage.py        ← Persistent cache & user servers (JSON files)
         ├── config.py         ← .env parser and SSH builder
         ├── providers/        ← Multi-provider abstraction layer
         │   ├── base.py       ←   Abstract Protocol
@@ -382,6 +406,19 @@ CLI (termainer)
 
 - [Configuration Reference](guide/configuration-reference.md)
 - [Configuration Reference (ES)](guide/configuration-reference-es.md)
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| **"Not installed" on all technology cards** | No local runtime detected and no SSH servers configured. Add entries to `~/.ssh/config` or use the "Manage servers" button in the app |
+| **SSH server shows in dropdown but fails to connect** | Verify the host is reachable (`ssh <alias>`) and the container runtime is installed on the remote host |
+| **Docker SSH tunnel fails** | The remote user must be in the `docker` group. Try `ssh <host> docker info` manually |
+| **Kubernetes/Podman/OpenShift over SSH not detected** | Ensure the CLI binary (`kubectl`, `podman`, `oc`) is in the remote user's `PATH` |
+| **Server selection modal is empty** | No SSH servers configured in `~/.ssh/config` or the app's server manager. Use "Manage servers" to add one |
+| **App crashes with "no runtime"** | This was fixed in v0.4.1+. Update to the latest version or just configure SSH servers |
 
 ---
 

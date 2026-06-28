@@ -45,25 +45,30 @@ class SwarmProvider:
         return state == "active"
 
     async def list_containers(self) -> List[ContainerSummary]:
-        raw = await self._run("service", "ls", "--format", "{{json .}}")
+        raw = await self._run("service", "ls")
         services: List[ContainerSummary] = []
-        for line in raw.strip().split("\n"):
+        lines = raw.strip().split("\n")
+        if not lines:
+            return services
+        # Skip header line
+        for line in lines[1:]:
             if not line.strip():
                 continue
-            item = json.loads(line)
-            sid = item.get("ID", "")
-            name = item.get("Name", "")
-            mode = item.get("Mode", "")
-            replicas = item.get("Replicas", "")
-            image = item.get("Image", "")
-            ports = item.get("Ports", "")
-            status = f"{mode} {replicas}".strip()
+            parts = line.split(None, 5)
+            if len(parts) < 4:
+                continue
+            sid = parts[0]
+            name = parts[1]
+            mode = parts[2]
+            replicas = parts[3]
+            image = parts[4] if len(parts) > 4 else ""
+            ports = parts[5] if len(parts) > 5 else ""
             services.append(
                 {
                     "id": sid,
                     "name": name,
                     "image": image,
-                    "status": status,
+                    "status": f"{mode} {replicas}",
                     "ports": ports,
                     "mode": mode,
                     "replicas": replicas,
@@ -97,7 +102,14 @@ class SwarmProvider:
         cmd.append(container_id)
 
         if self._ssh:
-            stream = await self._ssh.stream(["docker"] + cmd)
+            async with self._ssh.stream(["docker"] + cmd) as reader:
+                while True:
+                    line = await reader.readline()
+                    if not line:
+                        break
+                    yield line.decode("utf-8", errors="replace").rstrip("\n")
+                    if not follow:
+                        break
         else:
             proc = await asyncio.create_subprocess_exec(
                 self._docker_path,
@@ -106,13 +118,13 @@ class SwarmProvider:
                 stderr=asyncio.subprocess.STDOUT,
             )
             stream = proc.stdout
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            yield line.decode("utf-8", errors="replace").rstrip("\n")
-            if not follow:
-                break
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                yield line.decode("utf-8", errors="replace").rstrip("\n")
+                if not follow:
+                    break
 
     async def get_env(self, container_id: str) -> Dict[str, str]:
         details = await self.inspect(container_id)
@@ -179,7 +191,12 @@ class SwarmProvider:
             parts = command.split()
         cmd = ["exec", actual_cid] + parts
         if self._ssh:
-            stream = await self._ssh.stream(["docker"] + cmd)
+            async with self._ssh.stream(["docker"] + cmd) as reader:
+                while True:
+                    line = await reader.readline()
+                    if not line:
+                        break
+                    yield line.decode("utf-8", errors="replace").rstrip("\n")
         else:
             proc = await asyncio.create_subprocess_exec(
                 self._docker_path, *cmd,
@@ -187,11 +204,11 @@ class SwarmProvider:
                 stderr=asyncio.subprocess.STDOUT,
             )
             stream = proc.stdout
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            yield line.decode("utf-8", errors="replace").rstrip("\n")
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                yield line.decode("utf-8", errors="replace").rstrip("\n")
 
     async def close(self) -> None:
         pass

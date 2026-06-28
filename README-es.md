@@ -245,7 +245,13 @@ Luego ejecutá Termainer:
 termainer
 ```
 
-¡Verás todos los servidores del SSH config automáticamente cargados en el dropdown de servidor!
+Al hacer clic en una tarjeta de tecnología (ej. "Kubernetes"), Termainer muestra un **selector de servidores** con checkboxes. Los servidores seleccionados se prueban **en paralelo** y las conexiones exitosas abren el dashboard. Las preferencias se guardan en `~/.config/termainer/provider_servers.json`.
+
+También podés **agregar y eliminar servidores** desde la UI con el botón "Gestionar servidores". Los servidores personalizados se guardan en `~/.config/termainer/servers.json`.
+
+### Cambio de servidor en el dashboard
+
+Dentro del dashboard, al cambiar de servidor solo se prueba el **provider actual** en el servidor destino (sin multi-probe). Si ese servidor no tiene el provider, se muestra una notificación y el dashboard se queda en el servidor actual.
 
 #### Formas de autenticación SSH
 
@@ -264,21 +270,23 @@ sudo apt install sshpass
 sudo yum install sshpass
 ```
 
+### Selección de Servidores y Caché
+
+Al hacer clic en una tarjeta de tecnología (ej. "Kubernetes") sin tenerla local:
+
+1. **Selector modal** — checkboxes con todos los servidores SSH (SSH config + agregados por UI)
+   - Pre-seleccionados según el **caché** (`~/.config/termainer/provider_servers.json`)
+   - Botón "Gestionar servidores" para agregar/eliminar
+2. **Probando en paralelo** — los servidores seleccionados se prueban simultáneamente
+3. **Auto-caché** — las conexiones exitosas se guardan para el próximo inicio
+
 ### Dashboard Multi-Servidor
 
-La pantalla de entorno es por tecnología (`Docker`, `Swarm`, `Kubernetes`, `Podman`, `OpenShift`).
+Cuando se conectan múltiples servidores, el dashboard tecnológico agrupa los servidores relacionados. Podés:
 
-Cuando configurás múltiples servidores (via `config.yaml` o `~/.ssh/config`), cada dashboard tecnológico puede agrupar sus servidores. Podés:
-
-- **Dropdown de servidor** en la parte superior del dashboard para seleccionar un servidor específico
-- Opción **"Todos"** para ver recursos de todos los servidores de esa tecnología
-- **Cambiar de servidor** en cualquier momento usando el dropdown en la barra lateral
+- Usar el **dropdown de servidor** para seleccionar uno específico
+- **Cambiar de servidor** — solo se prueba el provider actual en el destino
 - Cada contenedor muestra el **nombre del servidor** como prefijo en modo multi-servidor
-
-El dropdown se completa automáticamente con:
-- **Local** (tu máquina)
-- Servidores SSH desde `~/.ssh/config`
-- Servidores desde `config.yaml` (si están configurados)
 
 ### Atajos de Teclado
 
@@ -334,6 +342,7 @@ CLI (termainer)
         ├── server_manager.py ← Gestor de conexiones multi-servidor
         ├── remote/           ← Módulo de conexión remota
         │   └── ssh.py        ←   SSH vía subprocess (key + password)
+        ├── storage.py        ← Caché persistente y servidores de usuario (JSON)
         ├── config.py         ← Carga de .env y construcción SSH
         ├── providers/        ← Capa de abstracción multi-provider
         │   ├── base.py       ←   Protocolo abstracto
