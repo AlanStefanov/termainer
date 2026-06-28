@@ -45,25 +45,30 @@ class SwarmProvider:
         return state == "active"
 
     async def list_containers(self) -> List[ContainerSummary]:
-        raw = await self._run("service", "ls", "--format", "{{json .}}")
+        raw = await self._run("service", "ls")
         services: List[ContainerSummary] = []
-        for line in raw.strip().split("\n"):
+        lines = raw.strip().split("\n")
+        if not lines:
+            return services
+        # Skip header line
+        for line in lines[1:]:
             if not line.strip():
                 continue
-            item = json.loads(line)
-            sid = item.get("ID", "")
-            name = item.get("Name", "")
-            mode = item.get("Mode", "")
-            replicas = item.get("Replicas", "")
-            image = item.get("Image", "")
-            ports = item.get("Ports", "")
-            status = f"{mode} {replicas}".strip()
+            parts = line.split(None, 5)
+            if len(parts) < 4:
+                continue
+            sid = parts[0]
+            name = parts[1]
+            mode = parts[2]
+            replicas = parts[3]
+            image = parts[4] if len(parts) > 4 else ""
+            ports = parts[5] if len(parts) > 5 else ""
             services.append(
                 {
                     "id": sid,
                     "name": name,
                     "image": image,
-                    "status": status,
+                    "status": f"{mode} {replicas}",
                     "ports": ports,
                     "mode": mode,
                     "replicas": replicas,

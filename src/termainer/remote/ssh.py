@@ -56,6 +56,7 @@ class SSHConnection:
     async def run(self, command: list[str]) -> str:
         cmd = self._build_command(command)
         env = os.environ.copy()
+        env["LANG"] = "C"
         if self._use_sshpass:
             env["SSHPASS"] = self.password
 

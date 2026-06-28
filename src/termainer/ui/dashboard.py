@@ -158,28 +158,20 @@ class Dashboard(Screen):
         return Vertical(brand_row, id="top-bar")
 
     def _build_server_selector(self) -> Optional[Select]:
-        """Build a Select widget with local servers + SSH aliases from ~/.ssh/config.
-        No SSH connections are made here — just reads the config file."""
-        ssh_servers = get_configured_ssh_servers()
-        total = self._server_manager.server_count + len(ssh_servers)
-        if total <= 1 and not ssh_servers:
+        """Build a Select widget with connected servers only."""
+        if self._server_manager.server_count <= 1:
             return None
 
         options: list[tuple[str, str]] = []
-
-        # Local servers (already connected)
-        for label in self._server_manager.server_labels:
-            options.append((f"⬡ {label}", f"local:{label}"))
-
-        # SSH servers from ~/.ssh/config (no connection yet)
-        for alias, srv in ssh_servers.items():
-            options.append((f"⬢ {srv.display_name}", f"ssh:{alias}"))
+        for conn in self._server_manager.servers:
+            prefix = "ssh:" if conn.ssh else "local:"
+            options.append((f"⬡ {conn.label}", f"{prefix}{conn.label}"))
 
         if not options:
             return None
 
         return Select(options, id="server-selector", classes="server-selector",
-                      value=f"local:{self._server_manager.server_labels[0]}" if self._server_manager.server_labels else Select.BLANK)
+                      value=f"local:{self._server_manager.servers[0].label}" if self._server_manager.servers else Select.BLANK)
 
     def on_select_changed(self, event: Select.Changed) -> None:
         """Handle server selector changes."""
