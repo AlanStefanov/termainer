@@ -403,8 +403,8 @@ class Dashboard(Screen):
         self._apply_responsive_mode(self.size.width, self.size.height)
         if self._active_server:
             conn = self._server_manager.get_connection(self._active_server)
-            if conn and conn.ssh:
-                self._active_ssh_conn = conn.ssh
+            if conn:
+                self._active_ssh_conn = conn
         self.run_worker(self._refresh_containers())
 
     def on_resize(self, event: Resize) -> None:
