@@ -38,7 +38,7 @@ HEALTH_CHECKS: dict[str, list[str]] = {
     "swarm": ["docker", "info"],
     "kubernetes": ["kubectl", "cluster-info"],
     "podman": ["podman", "info"],
-    "openshift": ["oc", "whoami"],
+    "openshift": ["which", "oc"],
 }
 
 

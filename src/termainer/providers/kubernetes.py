@@ -17,6 +17,8 @@ class KubernetesProvider:
     def __init__(self, ssh: Optional[SSHConnection] = None) -> None:
         self._kubectl_path: Optional[str] = None
         self._ssh = ssh
+        if ssh:
+            self._kubectl_path = "kubectl"
 
     async def is_available(self) -> bool:
         if self._ssh:
@@ -128,7 +130,7 @@ class KubernetesProvider:
             cmd.append("-f")
 
         if self._ssh:
-            async with self._ssh.stream(["kubectl"] + cmd) as reader:
+            async with self._ssh.stream([self._kubectl_path] + cmd) as reader:
                 while True:
                     line = await reader.readline()
                     if not line:
@@ -195,7 +197,7 @@ class KubernetesProvider:
             parts = command.split()
         cmd = ["exec", name, "-n", namespace, "--"] + parts
         if self._ssh:
-            async with self._ssh.stream(["kubectl"] + cmd) as reader:
+            async with self._ssh.stream([self._kubectl_path] + cmd) as reader:
                 while True:
                     line = await reader.readline()
                     if not line:
@@ -256,7 +258,7 @@ class KubernetesProvider:
 
     async def _run(self, *args: str) -> str:
         if self._ssh:
-            return await self._ssh.run(["kubectl"] + list(args))
+            return await self._ssh.run([self._kubectl_path] + list(args))
         proc = await asyncio.create_subprocess_exec(
             self._kubectl_path, *args,
             stdout=asyncio.subprocess.PIPE,
