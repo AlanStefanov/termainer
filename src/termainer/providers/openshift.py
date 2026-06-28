@@ -57,6 +57,16 @@ class OpenShiftProvider(KubernetesProvider):
 
     async def stats(self, container_id: str) -> AsyncIterator[dict]:
         namespace, name = self._parse_id(container_id)
+
+        def _parse_top(line: str) -> Optional[dict]:
+            parts = line.split()
+            if len(parts) < 3:
+                return None
+            if parts[0] in ("NAME", "POD", "PODS"):
+                return None
+            cpu_idx, mem_idx = (2, 3) if len(parts) >= 4 else (1, 2)
+            return {"pod": name, "namespace": namespace, "cpu": parts[cpu_idx], "memory": parts[mem_idx]}
+
         if self._ssh:
             async with self._ssh.stream([
                 "sh", "-c",
@@ -69,14 +79,9 @@ class OpenShiftProvider(KubernetesProvider):
                     line = line.decode("utf-8", errors="replace").strip()
                     if not line:
                         continue
-                    parts = line.split()
-                    if len(parts) >= 3 and parts[0] != "NAME":
-                        yield {
-                            "pod": name,
-                            "namespace": namespace,
-                            "cpu": parts[1],
-                            "memory": parts[2],
-                        }
+                    result = _parse_top(line)
+                    if result:
+                        yield result
         else:
             while True:
                 try:
@@ -85,14 +90,9 @@ class OpenShiftProvider(KubernetesProvider):
                     )
                     lines = raw.strip().split("\n")
                     if len(lines) >= 2:
-                        parts = lines[1].split()
-                        if len(parts) >= 3:
-                            yield {
-                                "pod": name,
-                                "namespace": namespace,
-                                "cpu": parts[1],
-                                "memory": parts[2],
-                            }
+                        result = _parse_top(lines[1])
+                        if result:
+                            yield result
                 except RuntimeError:
                     yield {"pod": name, "namespace": namespace, "cpu": "N/A", "memory": "N/A"}
                 await asyncio.sleep(2)
