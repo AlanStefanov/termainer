@@ -51,16 +51,34 @@ class PodmanProvider:
         return data
 
     async def stats(self, container_id: str) -> AsyncIterator[ContainerStats]:
-        while True:
-            raw = await self._run("stats", "--no-stream", "--format", "json", container_id)
-            if raw.strip():
-                data = json.loads(raw)
-                if isinstance(data, list):
-                    if data:
-                        yield data[0]
-                else:
-                    yield data
-            await asyncio.sleep(1)
+        if self._ssh:
+            async with self._ssh.stream([
+                "sh", "-c",
+                f"while true; do {self._podman_path} stats --no-stream --format json {container_id}; sleep 1; done"
+            ]) as reader:
+                while True:
+                    line = await reader.readline()
+                    if not line:
+                        break
+                    raw = line.decode("utf-8", errors="replace").strip()
+                    if raw:
+                        data = json.loads(raw)
+                        if isinstance(data, list):
+                            if data:
+                                yield data[0]
+                        else:
+                            yield data
+        else:
+            while True:
+                raw = await self._run("stats", "--no-stream", "--format", "json", container_id)
+                if raw.strip():
+                    data = json.loads(raw)
+                    if isinstance(data, list):
+                        if data:
+                            yield data[0]
+                    else:
+                        yield data
+                await asyncio.sleep(1)
 
     async def logs(
         self, container_id: str, tail: int = 100, follow: bool = False
@@ -71,7 +89,14 @@ class PodmanProvider:
         cmd.append(container_id)
 
         if self._ssh:
-            stream = await self._ssh.stream(["podman"] + cmd)
+            async with self._ssh.stream(["podman"] + cmd) as reader:
+                while True:
+                    line = await reader.readline()
+                    if not line:
+                        break
+                    yield line.decode("utf-8", errors="replace").rstrip("\n")
+                    if not follow:
+                        break
         else:
             proc = await asyncio.create_subprocess_exec(
                 self._podman_path, *cmd,
@@ -79,13 +104,13 @@ class PodmanProvider:
                 stderr=asyncio.subprocess.STDOUT,
             )
             stream = proc.stdout
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            yield line.decode("utf-8", errors="replace").rstrip("\n")
-            if not follow:
-                break
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                yield line.decode("utf-8", errors="replace").rstrip("\n")
+                if not follow:
+                    break
 
     async def get_env(self, container_id: str) -> Dict[str, str]:
         details = await self.inspect(container_id)
@@ -125,7 +150,12 @@ class PodmanProvider:
             parts = command.split()
         cmd = ["exec", container_id] + parts
         if self._ssh:
-            stream = await self._ssh.stream(["podman"] + cmd)
+            async with self._ssh.stream(["podman"] + cmd) as reader:
+                while True:
+                    line = await reader.readline()
+                    if not line:
+                        break
+                    yield line.decode("utf-8", errors="replace").rstrip("\n")
         else:
             proc = await asyncio.create_subprocess_exec(
                 self._podman_path, *cmd,
@@ -133,11 +163,11 @@ class PodmanProvider:
                 stderr=asyncio.subprocess.STDOUT,
             )
             stream = proc.stdout
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            yield line.decode("utf-8", errors="replace").rstrip("\n")
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                yield line.decode("utf-8", errors="replace").rstrip("\n")
 
     async def close(self) -> None:
         pass

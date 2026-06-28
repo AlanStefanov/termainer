@@ -102,7 +102,14 @@ class SwarmProvider:
         cmd.append(container_id)
 
         if self._ssh:
-            stream = await self._ssh.stream(["docker"] + cmd)
+            async with self._ssh.stream(["docker"] + cmd) as reader:
+                while True:
+                    line = await reader.readline()
+                    if not line:
+                        break
+                    yield line.decode("utf-8", errors="replace").rstrip("\n")
+                    if not follow:
+                        break
         else:
             proc = await asyncio.create_subprocess_exec(
                 self._docker_path,
@@ -111,13 +118,13 @@ class SwarmProvider:
                 stderr=asyncio.subprocess.STDOUT,
             )
             stream = proc.stdout
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            yield line.decode("utf-8", errors="replace").rstrip("\n")
-            if not follow:
-                break
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                yield line.decode("utf-8", errors="replace").rstrip("\n")
+                if not follow:
+                    break
 
     async def get_env(self, container_id: str) -> Dict[str, str]:
         details = await self.inspect(container_id)
@@ -184,7 +191,12 @@ class SwarmProvider:
             parts = command.split()
         cmd = ["exec", actual_cid] + parts
         if self._ssh:
-            stream = await self._ssh.stream(["docker"] + cmd)
+            async with self._ssh.stream(["docker"] + cmd) as reader:
+                while True:
+                    line = await reader.readline()
+                    if not line:
+                        break
+                    yield line.decode("utf-8", errors="replace").rstrip("\n")
         else:
             proc = await asyncio.create_subprocess_exec(
                 self._docker_path, *cmd,
@@ -192,11 +204,11 @@ class SwarmProvider:
                 stderr=asyncio.subprocess.STDOUT,
             )
             stream = proc.stdout
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            yield line.decode("utf-8", errors="replace").rstrip("\n")
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                yield line.decode("utf-8", errors="replace").rstrip("\n")
 
     async def close(self) -> None:
         pass

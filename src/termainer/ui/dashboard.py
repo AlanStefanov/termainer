@@ -5,7 +5,7 @@ import os
 import socket
 from importlib.resources import files
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
 from rich.markup import escape
 from textual.app import ComposeResult
@@ -88,6 +88,7 @@ class Dashboard(Screen):
         self._saved_docker_host: Optional[str] = None
         self._refresh_request_id = 0
         self._switching = False
+        self._env_cache: Dict[str, Dict[str, str]] = {}
 
     @property
     def _active_provider(self) -> Optional[Provider]:
@@ -446,6 +447,7 @@ class Dashboard(Screen):
     async def _refresh_containers(self) -> None:
         self._refresh_request_id += 1
         request_id = self._refresh_request_id
+        self._env_cache.clear()
         list_view = self.query_one("#container-list", ListView)
         list_view.clear()
         try:
@@ -526,14 +528,27 @@ class Dashboard(Screen):
         stats_widget.reset_history()
         self._cancel_tasks()
 
-        try:
-            env = await provider.get_env(container_id)
-            details.show_details(container_info, env)
-        except Exception:
-            details.update(f"[red]{_('dashboard.notify.details_error')}[/]")
+        # Show details immediately (env from cache or empty)
+        cached = self._env_cache.get(container_id)
+        details.show_details(container_info, cached or {})
+        if cached is None:
+            asyncio.create_task(self._load_env(container_id, container_info))
 
         self._stats_task = asyncio.create_task(self._stream_stats(container_id))
         self._log_task = asyncio.create_task(self._stream_logs(container_id))
+
+    async def _load_env(self, container_id: str, container_info: ContainerSummary) -> None:
+        provider = self._provider_for(container_info)
+        if provider is None:
+            return
+        try:
+            env = await provider.get_env(container_id)
+            self._env_cache[container_id] = env
+            if container_id == self._selected_container:
+                details = self.query_one("#details-content", DetailsWidget)
+                details.show_details(container_info, env)
+        except Exception:
+            pass
 
     def _provider_for(self, container: ContainerSummary) -> Optional[Provider]:
         server_label = container.get("_server") or self._active_server

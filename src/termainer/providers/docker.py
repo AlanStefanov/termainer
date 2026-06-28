@@ -106,9 +106,16 @@ class DockerProvider:
 
     async def stats(self, container_id: str) -> AsyncIterator[ContainerStats]:
         if self._ssh:
-            stream = await self._ssh.stream(
+            async with self._ssh.stream(
                 ["docker", "stats", "--format", "{{json .}}", container_id]
-            )
+            ) as reader:
+                while True:
+                    line = await reader.readline()
+                    if not line:
+                        break
+                    raw = _ANSI_RE.sub("", line.decode("utf-8", errors="replace")).strip()
+                    if raw:
+                        yield json.loads(raw)
         else:
             proc = await asyncio.create_subprocess_exec(
                 self._docker_path, "stats", "--format", "{{json .}}", container_id,
@@ -116,13 +123,13 @@ class DockerProvider:
                 stderr=asyncio.subprocess.PIPE,
             )
             stream = proc.stdout
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            raw = _ANSI_RE.sub("", line.decode("utf-8", errors="replace")).strip()
-            if raw:
-                yield json.loads(raw)
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                raw = _ANSI_RE.sub("", line.decode("utf-8", errors="replace")).strip()
+                if raw:
+                    yield json.loads(raw)
 
     async def logs(
         self, container_id: str, tail: int = 100, follow: bool = False
@@ -133,7 +140,14 @@ class DockerProvider:
         cmd.append(container_id)
 
         if self._ssh:
-            stream = await self._ssh.stream(["docker"] + cmd)
+            async with self._ssh.stream(["docker"] + cmd) as reader:
+                while True:
+                    line = await reader.readline()
+                    if not line:
+                        break
+                    yield line.decode("utf-8", errors="replace").rstrip("\n")
+                    if not follow:
+                        break
         else:
             proc = await asyncio.create_subprocess_exec(
                 self._docker_path, *cmd,
@@ -141,13 +155,13 @@ class DockerProvider:
                 stderr=asyncio.subprocess.STDOUT,
             )
             stream = proc.stdout
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            yield line.decode("utf-8", errors="replace").rstrip("\n")
-            if not follow:
-                break
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                yield line.decode("utf-8", errors="replace").rstrip("\n")
+                if not follow:
+                    break
 
     async def get_env(self, container_id: str) -> Dict[str, str]:
         details = await self.inspect(container_id)
@@ -187,7 +201,12 @@ class DockerProvider:
             parts = command.split()
         cmd = ["exec", container_id] + parts
         if self._ssh:
-            stream = await self._ssh.stream(["docker"] + cmd)
+            async with self._ssh.stream(["docker"] + cmd) as reader:
+                while True:
+                    line = await reader.readline()
+                    if not line:
+                        break
+                    yield line.decode("utf-8", errors="replace").rstrip("\n")
         else:
             proc = await asyncio.create_subprocess_exec(
                 self._docker_path, *cmd,
@@ -195,11 +214,11 @@ class DockerProvider:
                 stderr=asyncio.subprocess.STDOUT,
             )
             stream = proc.stdout
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            yield line.decode("utf-8", errors="replace").rstrip("\n")
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                yield line.decode("utf-8", errors="replace").rstrip("\n")
 
     async def close(self) -> None:
         pass

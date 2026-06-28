@@ -81,24 +81,43 @@ class KubernetesProvider:
 
     async def stats(self, container_id: str) -> AsyncIterator[ContainerStats]:
         namespace, name = self._parse_id(container_id)
-        while True:
-            try:
-                raw = await self._run(
-                    "top", "pod", name, "-n", namespace
-                )
-                lines = raw.strip().split("\n")
-                if len(lines) >= 2:
-                    parts = lines[1].split()
-                    if len(parts) >= 3:
+        if self._ssh:
+            async with self._ssh.stream([
+                "sh", "-c",
+                f"while true; do {self._kubectl_path} top pod {name} -n {namespace}; sleep 2; done"
+            ]) as reader:
+                while True:
+                    line = await reader.readline()
+                    if not line:
+                        break
+                    line = line.decode("utf-8", errors="replace").strip()
+                    if not line:
+                        continue
+                    parts = line.split()
+                    if len(parts) >= 3 and parts[0] != "NAME":
                         yield {
                             "pod": name,
                             "namespace": namespace,
                             "cpu": parts[1],
                             "memory": parts[2],
                         }
-            except RuntimeError:
-                yield {"pod": name, "namespace": namespace, "cpu": "N/A", "memory": "N/A"}
-            await asyncio.sleep(2)
+        else:
+            while True:
+                try:
+                    raw = await self._run("top", "pod", name, "-n", namespace)
+                    lines = raw.strip().split("\n")
+                    if len(lines) >= 2:
+                        parts = lines[1].split()
+                        if len(parts) >= 3:
+                            yield {
+                                "pod": name,
+                                "namespace": namespace,
+                                "cpu": parts[1],
+                                "memory": parts[2],
+                            }
+                except RuntimeError:
+                    yield {"pod": name, "namespace": namespace, "cpu": "N/A", "memory": "N/A"}
+                await asyncio.sleep(2)
 
     async def logs(
         self, container_id: str, tail: int = 100, follow: bool = False
@@ -109,7 +128,14 @@ class KubernetesProvider:
             cmd.append("-f")
 
         if self._ssh:
-            stream = await self._ssh.stream(["kubectl"] + cmd)
+            async with self._ssh.stream(["kubectl"] + cmd) as reader:
+                while True:
+                    line = await reader.readline()
+                    if not line:
+                        break
+                    yield line.decode("utf-8", errors="replace").rstrip("\n")
+                    if not follow:
+                        break
         else:
             proc = await asyncio.create_subprocess_exec(
                 self._kubectl_path, *cmd,
@@ -117,13 +143,13 @@ class KubernetesProvider:
                 stderr=asyncio.subprocess.STDOUT,
             )
             stream = proc.stdout
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            yield line.decode("utf-8", errors="replace").rstrip("\n")
-            if not follow:
-                break
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                yield line.decode("utf-8", errors="replace").rstrip("\n")
+                if not follow:
+                    break
 
     async def get_env(self, container_id: str) -> Dict[str, str]:
         details = await self.inspect(container_id)
@@ -169,7 +195,12 @@ class KubernetesProvider:
             parts = command.split()
         cmd = ["exec", name, "-n", namespace, "--"] + parts
         if self._ssh:
-            stream = await self._ssh.stream(["kubectl"] + cmd)
+            async with self._ssh.stream(["kubectl"] + cmd) as reader:
+                while True:
+                    line = await reader.readline()
+                    if not line:
+                        break
+                    yield line.decode("utf-8", errors="replace").rstrip("\n")
         else:
             proc = await asyncio.create_subprocess_exec(
                 self._kubectl_path, *cmd,
@@ -177,11 +208,11 @@ class KubernetesProvider:
                 stderr=asyncio.subprocess.STDOUT,
             )
             stream = proc.stdout
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            yield line.decode("utf-8", errors="replace").rstrip("\n")
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                yield line.decode("utf-8", errors="replace").rstrip("\n")
 
     async def close(self) -> None:
         pass
