@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## v0.5.0 (2026-06-28)
+
+### Feature
+
+* feat: remote SSH providers with server selection UI and performance fix
+
+- Todos los providers (Docker, Swarm, K8s, Podman, OpenShift) soportan conexión SSH remota
+- ServerSelectionModal con keyboard navigation (↑↓ Space Enter Escape)
+- ConnectingModal con animación ▶→✓ y probing paralelo
+- Dashboard funcional: selector de servidores, lista, detalles, stats, logs
+- _StreamContext en SSHConnection: mata procesos zombies al cancelar
+- Cache de get_env + loading en background para navegación instantánea
+- Stats persistentes con bash while-loop (1 SSH en vez de 1 cada 2s) ([`ae9d189`](https://github.com/AlanStefanov/termainer/commit/ae9d18954e68ba425ef595587700bd4a46e8c5ac))
+
+### Fix
+
+* fix: update swarm list_containers test to match plain-text parsing ([`5da3533`](https://github.com/AlanStefanov/termainer/commit/5da3533ddc6cc380481589142a84eebfd2d317f1))
+
+### Unknown
+
+* Add website badge: astefanov.com ([`b0f4f85`](https://github.com/AlanStefanov/termainer/commit/b0f4f856f723751bed72f055a9d65e185c9eaffa))
+
 ## v0.4.1 (2026-06-27)
 
 ### Chore
