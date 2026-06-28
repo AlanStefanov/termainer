@@ -17,6 +17,8 @@ class KubernetesProvider:
     def __init__(self, ssh: Optional[SSHConnection] = None) -> None:
         self._kubectl_path: Optional[str] = None
         self._ssh = ssh
+        if ssh:
+            self._kubectl_path = "kubectl"
 
     async def is_available(self) -> bool:
         if self._ssh:

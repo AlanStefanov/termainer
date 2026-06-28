@@ -14,26 +14,21 @@ class OpenShiftProvider(KubernetesProvider):
 
     def __init__(self, ssh: Optional[SSHConnection] = None) -> None:
         super().__init__(ssh=ssh)
-        self._oc_path: Optional[str] = None
+        if ssh:
+            self._kubectl_path = "oc"
 
     async def is_available(self) -> bool:
         if self._ssh:
             try:
-                await self._ssh.run(["oc", "whoami"])
-                self._kubectl_path = "oc"
-                return True
+                result = await self._ssh.run(["which", "oc"])
+                if result.strip():
+                    self._kubectl_path = "oc"
+                    return True
             except RuntimeError:
-                return False
-        self._kubectl_path = shutil.which("oc")
-        if not self._kubectl_path:
+                pass
             return False
-        proc = await asyncio.create_subprocess_exec(
-            self._kubectl_path, "whoami",
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
-        code = await proc.wait()
-        return code == 0
+        self._kubectl_path = shutil.which("oc")
+        return self._kubectl_path is not None
 
     async def list_containers(self) -> List[dict]:
         raw = await self._run(

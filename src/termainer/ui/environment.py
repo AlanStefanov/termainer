@@ -53,7 +53,7 @@ TECHNOLOGY_CARDS: List[TechnologyCard] = [
     TechnologyCard("docker", "Docker", _("environment.subtitle.docker")),
     TechnologyCard("kubernetes", "Kubernetes", _("environment.subtitle.kubernetes")),
     TechnologyCard("podman", "Podman", _("environment.subtitle.podman")),
-    TechnologyCard("openshift", "OpenShift", _("environment.subtitle.openshift")),
+    TechnologyCard("openshift", _("home.platform.openshift"), _("environment.subtitle.openshift")),
     TechnologyCard("swarm", "Docker Swarm", _("environment.subtitle.swarm")),
 ]
 
@@ -71,7 +71,7 @@ HEALTH_CHECKS = {
     "swarm": ["docker", "info"],
     "kubernetes": ["kubectl", "cluster-info"],
     "podman": ["podman", "info"],
-    "openshift": ["oc", "whoami"],
+    "openshift": ["which", "oc"],
 }
 
 
