@@ -342,7 +342,10 @@ async def test_swarm_is_available_false() -> None:
 async def test_swarm_list_containers() -> None:
     provider = SwarmProvider()
     provider._docker_path = "/usr/bin/docker"
-    provider._run = AsyncMock(return_value='{"ID":"abc123","Name":"web","Mode":"replicated","Replicas":"2/2","Image":"nginx:latest","Ports":"*:80->80/tcp"}\n')
+    provider._run = AsyncMock(return_value=(
+        "ID             NAME      MODE         REPLICAS   IMAGE          PORTS\n"
+        "abc123         web       replicated   2/2        nginx:latest   *:80->80/tcp\n"
+    ))
     result = await provider.list_containers()
     assert len(result) == 1
     assert result[0]["id"] == "abc123"
