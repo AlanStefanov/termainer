@@ -193,7 +193,7 @@ class HomeScreen(Screen):
     BINDINGS = [
         ("enter",  "continue_to_env", _("home.bind.continue")),
         ("escape", "continue_to_env", _("home.bind.continue")),
-        ("q",      "quit",            _("home.bind.quit")),
+        ("q",      "show_quit_confirm", _("home.bind.quit")),
     ]
 
     def __init__(self, server_manager: ServerManager) -> None:
@@ -252,8 +252,13 @@ class HomeScreen(Screen):
     def action_continue_to_env(self) -> None:
         self._dismiss()
 
-    def action_quit(self) -> None:
-        self.app.exit()
+    def action_show_quit_confirm(self) -> None:
+        from .environment import ConfirmQuitModal
+        self.app.push_screen(ConfirmQuitModal(), self._on_quit_result)
+
+    def _on_quit_result(self, confirmed: bool) -> None:
+        if confirmed:
+            self.app.exit()
 
     def _dismiss(self) -> None:
         if self._dismissed:

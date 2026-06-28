@@ -47,43 +47,54 @@ class DockerProvider:
             return []
 
         raw_details = await self._run("inspect", *ids)
-        data = json.loads(raw_details)
+        try:
+            data = json.loads(raw_details)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(
+                f"Error al parsear respuesta de docker inspect: {e}. "
+                f"Output (primeros 500 chars): {raw_details[:500]}"
+            )
         if not isinstance(data, list):
             data = [data]
 
         containers = []
         for item in data:
-            cid = item.get("Id", "")
-            if cid.startswith("sha256:"):
-                cid = cid[7:]
-            config = item.get("Config", {}) or {}
-            state = item.get("State", {}) or {}
-            net_settings = item.get("NetworkSettings", {}) or {}
-            host_config = item.get("HostConfig", {}) or {}
+            try:
+                cid = item.get("Id", "")
+                if cid.startswith("sha256:"):
+                    cid = cid[7:]
+                config = item.get("Config", {}) or {}
+                state = item.get("State", {}) or {}
+                net_settings = item.get("NetworkSettings", {}) or {}
+                host_config = item.get("HostConfig", {}) or {}
 
-            ports_raw = net_settings.get("Ports", {}) or {}
-            port_str = ", ".join(
-                f"{b[0]['HostPort']}->{port}"
-                if b and isinstance(b, list) and len(b) > 0 and "HostPort" in b[0]
-                else port
-                for port, b in ports_raw.items()
-            )
+                ports_raw = net_settings.get("Ports", {}) or {}
+                port_str = ", ".join(
+                    f"{b[0]['HostPort']}->{port}"
+                    if b and isinstance(b, list) and len(b) > 0 and "HostPort" in b[0]
+                    else port
+                    for port, b in ports_raw.items()
+                )
 
-            networks_raw = net_settings.get("Networks", {}) or {}
-            net_str = ", ".join(networks_raw.keys())
+                networks_raw = net_settings.get("Networks", {}) or {}
+                net_str = ", ".join(networks_raw.keys())
 
-            restart = (host_config.get("RestartPolicy", {}) or {}).get("Name", "")
+                restart = (host_config.get("RestartPolicy", {}) or {}).get("Name", "")
 
-            containers.append({
-                "id": cid,
-                "names": item.get("Name", "").lstrip("/"),
-                "image": config.get("Image", ""),
-                "status": state.get("Status", "unknown"),
-                "createdat": item.get("Created", ""),
-                "ports": port_str,
-                "networks": net_str,
-                "restartpolicy": restart,
-            })
+                containers.append({
+                    "id": cid,
+                    "names": item.get("Name", "").lstrip("/"),
+                    "image": config.get("Image", ""),
+                    "status": state.get("Status", "unknown"),
+                    "createdat": item.get("Created", ""),
+                    "ports": port_str,
+                    "networks": net_str,
+                    "restartpolicy": restart,
+                })
+            except Exception as e:
+                raise RuntimeError(
+                    f"Error procesando contenedor: {e}. Datos: {json.dumps(item, default=str)[:300]}"
+                )
         return containers
 
     async def inspect(self, container_id: str) -> ContainerDetails:

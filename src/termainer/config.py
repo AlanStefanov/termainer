@@ -51,13 +51,15 @@ def build_ssh_from_ssh_server(
     ssh_server: SSHServer,
     cli_password: Optional[str] = None,
 ) -> SSHConnection:
-    """Build SSHConnection from an SSHServer object (parsed from ~/.ssh/config).
+    """Build SSHConnection from an SSHServer object.
 
-    Uses the Host alias so SSH config matching works correctly (ProxyJump, etc).
-    User/key/port are passed explicitly only when specified in the config entry.
+    For SSH config entries (source="ssh_config"): uses the Host alias so
+    SSH resolves HostName, User, etc. from ~/.ssh/config automatically.
+    For app-configured entries (source="app_config"): uses hostname directly.
     """
+    host = ssh_server.hostname if ssh_server.source == "app_config" else ssh_server.host
     return SSHConnection(
-        host=ssh_server.host,
+        host=host,
         user=ssh_server.user,
         key_path=ssh_server.identity_file,
         password=cli_password,
