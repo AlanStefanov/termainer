@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## v0.5.2-alpha (2026-06-30)
+
+### Feature
+- Initial alpha release for community testing (Reddit)
+
+## v0.5.1 (2026-06-30)
+
+### Fix
+- Sync version tag with GitHub release
+
 ## v0.5.0 (2026-06-28)
 
 ### Feature
