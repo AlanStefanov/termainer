@@ -1,9 +1,10 @@
 # CHANGELOG
 
-## v0.5.2-alpha (2026-06-30)
+## v0.5.2a0 (2026-06-30)
 
 ### Feature
 - Initial alpha release for community testing (Reddit)
+- UI displays as "v0.5.2-alpha" despite PEP 440 normalized package version
 
 ## v0.5.1 (2026-06-30)
 

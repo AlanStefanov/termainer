@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "termainer"
-version = "0.5.2-alpha"
+version = "0.5.2a0"
 description = "Container observability and operations directly from your terminal"
 readme = "README.md"
 requires-python = ">=3.10"

@@ -1,1 +1,2 @@
-VERSION = "0.5.2-alpha"
+VERSION = "0.5.2a0"
+VERSION_DISPLAY = "0.5.2-alpha"

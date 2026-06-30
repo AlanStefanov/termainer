@@ -9,10 +9,10 @@ from textual.widgets import Static
 
 from ..locale import _
 from ..server_manager import ServerManager
-from ..version import VERSION
+from ..version import VERSION_DISPLAY
 
 
-_BRAND = f"[bold #66FF33]  [ >_ ]  T · E · R · M · A · I · N · E · R   v{VERSION}  [/]"
+_BRAND = f"[bold #66FF33]  [ >_ ]  T · E · R · M · A · I · N · E · R   v{VERSION_DISPLAY}  [/]"
 
 _BOOT_STEP_KEYS: list[tuple[str, str]] = [
     ("splash.boot.init",     "#66FF33"),

@@ -9,7 +9,7 @@ from textual.widgets import Static
 
 from ..locale import _
 from ..server_manager import ServerManager
-from ..version import VERSION
+from ..version import VERSION_DISPLAY
 
 
 # ── ASCII art ─────────────────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ class HeaderWidget(Horizontal):
 
     def compose(self) -> ComposeResult:
         yield Static(
-            f"[bold #66FF33][ >_ ][/]  [bold #66FF33]TERMAINER[/] [dim #66FF33]v{VERSION}[/]",
+            f"[bold #66FF33][ >_ ][/]  [bold #66FF33]TERMAINER[/] [dim #66FF33]v{VERSION_DISPLAY}[/]",
             id="home-logo",
         )
         yield Static(f"─── {_('home.welcome')} ───", id="home-welcome")

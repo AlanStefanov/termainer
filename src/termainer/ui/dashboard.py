@@ -27,7 +27,7 @@ from ..remote.ssh import SSHConnection
 from ..server_manager import ServerConnection, ServerManager, provider_class_for
 from ..storage import save_provider_servers_cache, get_cached_aliases
 from ..utils.helpers import build_report_header, format_timestamp
-from ..version import VERSION
+from ..version import VERSION_DISPLAY
 from .widgets import ContainerItem, DetailsWidget, LogWidget, StatsWidget
 
 
@@ -155,7 +155,7 @@ class Dashboard(Screen):
         )
 
         brand_row = Horizontal(
-            Static(f"[bold #22d3ee][ ][/] [bold #22d3ee]TERMAINER[/] [#5c5c5c]v{VERSION}[/]", id="top-brand"),
+            Static(f"[bold #22d3ee][ ][/] [bold #22d3ee]TERMAINER[/] [#5c5c5c]v{VERSION_DISPLAY}[/]", id="top-brand"),
             Static(_("dashboard.tagline"), id="top-tagline"),
             Static(connection_status, id="top-status"),
             id="top-bar-row",

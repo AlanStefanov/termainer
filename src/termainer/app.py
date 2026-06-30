@@ -24,7 +24,7 @@ from .providers.swarm import SwarmProvider
 from .remote.ssh import SSHConnection
 from .server_manager import ServerConnection, ServerManager, provider_class_for
 from .ui.splash import BootScreen
-from .version import VERSION
+from .version import VERSION_DISPLAY
 
 
 def _check_command(command: list[str]) -> bool:
@@ -99,7 +99,7 @@ def run_doctor() -> int:
 
     checks.append(True)
     core_checks.append(True)
-    _print_doctor_line(True, "Version", VERSION)
+    _print_doctor_line(True, "Version", VERSION_DISPLAY)
 
     print()
     if all(checks):
@@ -275,7 +275,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--version",
         action="version",
-        version=f"%(prog)s {VERSION}",
+        version=f"%(prog)s {VERSION_DISPLAY}",
         help="Show version and exit",
     )
     parser.add_argument(

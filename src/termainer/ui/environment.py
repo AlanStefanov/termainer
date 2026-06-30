@@ -25,7 +25,7 @@ from ..storage import (
     save_provider_servers_cache,
     save_user_server,
 )
-from ..version import VERSION
+from ..version import VERSION_DISPLAY
 from .dashboard import Dashboard
 
 
@@ -212,7 +212,7 @@ class ServerSelectionModal(ModalScreen[Optional[List[str]]]):
                     Static(_("environment.modal.info_app_config"), id="info-app-config"),
                     Static("[bold]➕ " + _("environment.modal.info_howto_title") + "[/]", id="info-howto-title"),
                     Static(_("environment.modal.info_howto"), id="info-howto"),
-                    Static(_("environment.modal.info_thanks", version=VERSION), id="info-thanks"),
+                    Static(_("environment.modal.info_thanks", version=VERSION_DISPLAY), id="info-thanks"),
                     Static("[dim]" + _("environment.modal.info_feedback") + "[/]", id="info-feedback"),
                     id="sel-body-right",
                 ),
@@ -497,7 +497,7 @@ class EnvironmentScreen(Screen):
             rows.append(Horizontal(*row_cards, id=f"env-row-{len(rows)}"))
 
         yield Vertical(
-            Static(f"[bold #22d3ee]TERMAINER[/] [#808080]v{VERSION}[/]", id="env-brand"),
+            Static(f"[bold #22d3ee]TERMAINER[/] [#808080]v{VERSION_DISPLAY}[/]", id="env-brand"),
             Static(_("environment.title"), id="env-title"),
             Static(
                 f"[dim]{_('environment.copy')}[/]",
